@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OjoL - Sistem Ojek Online Terpercaya</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        accent: '#F59E0B'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg fixed w-full z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold text-primary">🚗 OjoL</h1>
+                </div>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#home" class="text-gray-700 hover:text-primary transition-colors">Beranda</a>
+                    <a href="#features" class="text-gray-700 hover:text-primary transition-colors">Fitur</a>
+                    <a href="#about" class="text-gray-700 hover:text-primary transition-colors">Tentang</a>
+                    <a href="#contact" class="text-gray-700 hover:text-primary transition-colors">Kontak</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="login.html" class="text-primary hover:text-blue-700 transition-colors">Masuk</a>
+                    <a href="login.html" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                        Daftar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="pt-20 bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <h1 class="text-5xl font-bold text-gray-900 mb-6">
+                        Ojek Online
+                        <span class="text-primary">Terpercaya</span>
+                    </h1>
+                    <p class="text-xl text-gray-600 mb-8">
+                        Nikmati perjalanan yang aman, nyaman, dan cepat dengan driver profesional kami. 
+                        Pesan ojek online dengan mudah dan dapatkan harga terbaik.
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <a href="login.html" class="bg-primary text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-600 transition-colors text-center">
+                            Mulai Sekarang
+                        </a>
+                        <a href="#features" class="border-2 border-primary text-primary px-8 py-4 rounded-lg text-lg font-semibold hover:bg-primary hover:text-white transition-colors text-center">
+                            Pelajari Lebih Lanjut
+                        </a>
+                    </div>
+                </div>
+                <div class="relative">
+                    <div class="bg-white p-8 rounded-2xl shadow-xl">
+                        <div class="text-center mb-6">
+                            <h3 class="text-2xl font-bold text-gray-900 mb-2">Cek Harga</h3>
+                            <p class="text-gray-600">Masukkan lokasi untuk estimasi harga</p>
+                        </div>
+                        <div class="space-y-4">
+                            <input type="text" placeholder="Lokasi Asal" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                            <input type="text" placeholder="Lokasi Tujuan" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                            <button class="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-blue-600 transition-colors">
+                                Cek Harga
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold text-gray-900 mb-4">Mengapa Memilih OjoL?</h2>
+                <p class="text-xl text-gray-600">Fitur unggulan yang membuat perjalanan Anda lebih menyenangkan</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="text-center p-6">
+                    <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl">🚗</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">Driver Terverifikasi</h3>
+                    <p class="text-gray-600">Semua driver kami telah melalui proses verifikasi ketat untuk menjamin keamanan Anda.</p>
+                </div>
+                
+                <div class="text-center p-6">
+                    <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl">💰</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">Harga Transparan</h3>
+                    <p class="text-gray-600">Tidak ada biaya tersembunyi. Harga yang Anda lihat adalah harga yang Anda bayar.</p>
+                </div>
+                
+                <div class="text-center p-6">
+                    <div class="bg-yellow-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl">⚡</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">Pesanan Cepat</h3>
+                    <p class="text-gray-600">Dapatkan driver dalam hitungan menit dengan sistem matching yang cerdas.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="py-20 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold text-gray-900 mb-4">Cara Kerja OjoL</h2>
+                <p class="text-xl text-gray-600">Hanya dalam 4 langkah sederhana</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div class="text-center">
+                    <div class="bg-primary text-white w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">1</div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Masuk</h3>
+                    <p class="text-gray-600">Login ke akun OjoL Anda</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="bg-primary text-white w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">2</div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Pilih Lokasi</h3>
+                    <p class="text-gray-600">Masukkan lokasi asal dan tujuan</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="bg-primary text-white w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">3</div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Konfirmasi</h3>
+                    <p class="text-gray-600">Review harga dan konfirmasi pesanan</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="bg-primary text-white w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">4</div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Nikmati Perjalanan</h3>
+                    <p class="text-gray-600">Driver akan menjemput Anda</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="py-20 bg-primary">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
+                <div>
+                    <div class="text-4xl font-bold text-white mb-2">10K+</div>
+                    <div class="text-blue-100">Driver Aktif</div>
+                </div>
+                <div>
+                    <div class="text-4xl font-bold text-white mb-2">50K+</div>
+                    <div class="text-blue-100">Pengguna Terdaftar</div>
+                </div>
+                <div>
+                    <div class="text-4xl font-bold text-white mb-2">100K+</div>
+                    <div class="text-blue-100">Perjalanan Selesai</div>
+                </div>
+                <div>
+                    <div class="text-4xl font-bold text-white mb-2">4.8</div>
+                    <div class="text-blue-100">Rating Pengguna</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="py-20 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <h2 class="text-4xl font-bold text-gray-900 mb-6">Tentang OjoL</h2>
+                    <p class="text-lg text-gray-600 mb-6">
+                        OjoL adalah platform ojek online terdepan yang menghubungkan pengguna dengan driver profesional. 
+                        Kami berkomitmen untuk memberikan layanan transportasi yang aman, nyaman, dan terjangkau.
+                    </p>
+                    <p class="text-lg text-gray-600 mb-8">
+                        Dengan teknologi canggih dan driver terverifikasi, kami memastikan setiap perjalanan Anda 
+                        berjalan lancar dan menyenangkan.
+                    </p>
+                    <div class="flex space-x-4">
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-primary">24/7</div>
+                            <div class="text-sm text-gray-600">Layanan</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-primary">100%</div>
+                            <div class="text-sm text-gray-600">Aman</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-primary">5 Menit</div>
+                            <div class="text-sm text-gray-600">Waktu Tunggu</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-100 p-8 rounded-2xl">
+                    <div class="text-center">
+                        <h3 class="text-2xl font-bold text-gray-900 mb-4">Bergabung Sebagai Driver</h3>
+                        <p class="text-gray-600 mb-6">Dapatkan penghasilan tambahan dengan menjadi driver OjoL</p>
+                        <a href="login.html" class="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 transition-colors">
+                            Daftar Driver
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="py-20 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-bold text-gray-900 mb-4">Hubungi Kami</h2>
+                <p class="text-xl text-gray-600">Kami siap membantu Anda 24/7</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="text-center">
+                    <div class="bg-primary w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-white">📧</span>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Email</h3>
+                    <p class="text-gray-600">support@ojol.com</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="bg-primary w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-white">📞</span>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Telepon</h3>
+                    <p class="text-gray-600">+62 21 1234 5678</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="bg-primary w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-white">💬</span>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Live Chat</h3>
+                    <p class="text-gray-600">Tersedia 24/7</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <h3 class="text-xl font-bold mb-4">🚗 OjoL</h3>
+                    <p class="text-gray-400">Platform ojek online terpercaya untuk perjalanan Anda.</p>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold mb-4">Layanan</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#" class="hover:text-white transition-colors">Ojek Motor</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Ojek Mobil</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Antar Jemput</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Kurir</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold mb-4">Perusahaan</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#" class="hover:text-white transition-colors">Tentang Kami</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Karir</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Blog</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Press Kit</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold mb-4">Dukungan</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#" class="hover:text-white transition-colors">Pusat Bantuan</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Keamanan</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Privasi</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Syarat & Ketentuan</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+                <p>&copy; 2024 OjoL. Semua hak dilindungi.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Add scroll effect to navigation
+        window.addEventListener('scroll', function() {
+            const nav = document.querySelector('nav');
+            if (window.scrollY > 100) {
+                nav.classList.add('bg-white/95', 'backdrop-blur-sm');
+            } else {
+                nav.classList.remove('bg-white/95', 'backdrop-blur-sm');
+            }
+        });
+    </script>
+</body>
+</html>
