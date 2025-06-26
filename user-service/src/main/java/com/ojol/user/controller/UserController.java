@@ -1,8 +1,12 @@
 package com.ojol.user.controller;
 
+import com.ojol.user.client.CustomerClient;
+import com.ojol.user.dto.CustomerDto;
+import com.ojol.user.dto.UserDto;
 import com.ojol.user.dto.UserUpdateRequest;
 import com.ojol.user.model.User;
 import com.ojol.user.repository.UserRepository;
+import com.ojol.user.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +21,12 @@ public class UserController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private CustomerClient customerClient;
+
+    @Autowired
+    private UserService userService;
 
     // User endpoints
     @PostMapping
@@ -38,6 +48,35 @@ public class UserController {
     public ResponseEntity<User> getUserById(@PathVariable Long id) {
         Optional<User> user = userRepository.findById(id);
         return user.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/customer")
+    public ResponseEntity<CustomerDto> getUserCustomerData(@PathVariable Long id) {
+        Optional<User> user = userRepository.findById(id);
+        if (user.isPresent()) {
+            try {
+                CustomerDto customer = customerClient.getCustomerByUserId(id.toString());
+                return ResponseEntity.ok(customer);
+            } catch (Exception e) {
+                return ResponseEntity.notFound().build();
+            }
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/{id}/with-customer")
+    public ResponseEntity<UserDto> getUserWithCustomerData(@PathVariable Long id) {
+        UserDto userWithCustomer = userService.getUserWithCustomerData(id);
+        if (userWithCustomer != null) {
+            return ResponseEntity.ok(userWithCustomer);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/customers")
+    public ResponseEntity<List<CustomerDto>> getAllCustomers() {
+        List<CustomerDto> customers = userService.getAllCustomers();
+        return ResponseEntity.ok(customers);
     }
 
     @PutMapping("/{id}")

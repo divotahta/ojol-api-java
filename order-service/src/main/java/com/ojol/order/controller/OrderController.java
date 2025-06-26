@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import feign.FeignException;
 import java.util.HashMap;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("/orders")
@@ -360,6 +361,45 @@ public class OrderController {
             return ResponseEntity.badRequest().body(Map.of(
                     "message", "Error: " + e.getMessage(),
                     "success", false));
+        }
+    }
+
+    @GetMapping("/driver/{driverId}/statistics")
+    public ResponseEntity<?> getDriverStatistics(@PathVariable Long driverId) {
+        try {
+            // Ambil semua order driver
+            List<Order> driverOrders = orderRepository.findByDriverId(driverId);
+            
+            // Hitung statistik
+            long activeOrders = driverOrders.stream()
+                    .filter(order -> "in_progress".equalsIgnoreCase(order.getStatus()) || 
+                                   "on_trip".equalsIgnoreCase(order.getStatus()))
+                    .count();
+            
+            long completedOrders = driverOrders.stream()
+                    .filter(order -> "completed".equalsIgnoreCase(order.getStatus()))
+                    .count();
+            
+            // Hitung pendapatan hari ini
+            LocalDateTime today = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
+            double todayEarnings = driverOrders.stream()
+                    .filter(order -> "completed".equalsIgnoreCase(order.getStatus()) &&
+                                   order.getUpdatedAt() != null &&
+                                   order.getUpdatedAt().isAfter(today))
+                    .mapToDouble(order -> order.getPrice().doubleValue())
+                    .sum();
+            
+            Map<String, Object> statistics = new HashMap<>();
+            statistics.put("activeOrders", activeOrders);
+            statistics.put("completedOrders", completedOrders);
+            statistics.put("todayEarnings", todayEarnings);
+            statistics.put("totalOrders", driverOrders.size());
+            
+            return ResponseEntity.ok(statistics);
+        } catch (Exception e) {
+            log.error("Error getting driver statistics for driverId: {}", driverId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Gagal mengambil statistik driver", "error", e.getMessage()));
         }
     }
 

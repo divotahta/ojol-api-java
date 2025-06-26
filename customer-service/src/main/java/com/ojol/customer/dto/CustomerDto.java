@@ -1,38 +1,31 @@
-package com.ojol.customer.model;
+package com.ojol.customer.dto;
 
-import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "customers")
-public class Customer {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class CustomerDto {
     private Long id;
-
-    @Column(nullable = false)
     private String userId;
-
-    @Column(nullable = false)
     private String phone;
-
-    @Column(nullable = false)
     private String address;
-
-    @Column
     private String gender;
-
-    @Column
     private LocalDate dateOfBirth;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt = LocalDateTime.now();
+    public CustomerDto() {}
 
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt = LocalDateTime.now();
+    public CustomerDto(Long id, String userId, String phone, String address, String gender, LocalDate dateOfBirth, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this.id = id;
+        this.userId = userId;
+        this.phone = phone;
+        this.address = address;
+        this.gender = gender;
+        this.dateOfBirth = dateOfBirth;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
 
-    // Getters & Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getUserId() { return userId; }

@@ -46,6 +46,12 @@ spring:
             - Path=/api/payments/**
           filters:
             - StripPrefix=1
+        - id: customer-service
+          uri: lb://customer-service
+          predicates:
+            - Path=/api/customers/**
+          filters:
+            - StripPrefix=1
       globalcors:
         add-to-simple-url-handler-mapping: true
         corsConfigurations:

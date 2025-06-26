@@ -1,11 +1,11 @@
 server:
-  port: 8086
+  port: 8085
 
 spring:
   application:
-    name: customer-service
+    name: auth-service
   datasource:
-    url: jdbc:mysql://localhost:3306/customer_db?useSSL=false&serverTimezone=UTC
+    url: jdbc:mysql://localhost:3306/user_db?useSSL=false&serverTimezone=UTC
     username: root
     password: 
     driver-class-name: com.mysql.cj.jdbc.Driver

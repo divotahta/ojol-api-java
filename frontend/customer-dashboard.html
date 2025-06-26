@@ -62,7 +62,7 @@
       </div>
 
       <!-- Quick Stats -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-6 mb-8">
         <div
           class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500"
         >
@@ -117,6 +117,67 @@
               <p id="total-payments" class="text-2xl font-bold text-purple-600">
                 Rp 0
               </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-span-2 md:col-span-3 bg-gray-100 p-4 rounded">
+
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center">
+              <div class="p-3 rounded-full bg-red-100 text-red-600">
+                <i class="fas fa-user text-xl"></i>
+              </div>
+              <div class="ml-4">
+                <h3 class="text-lg font-semibold text-gray-800">
+                  Detail Profile
+                </h3>
+                <p class="text-sm text-gray-600">Informasi lengkap profil Anda</p>
+              </div>
+            </div>
+            <button onclick="customerDashboard.editProfile()" class="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition-colors text-sm">
+              <i class="fas fa-edit mr-1"></i>Edit Profile
+            </button>
+          </div>
+          <div id="customer-profile-detail" class="space-y-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="flex items-center space-x-3">
+                <i class="fas fa-phone text-blue-500 w-5"></i>
+                <div>
+                  <p class="text-sm text-gray-600">Phone</p>
+                  <p class="font-medium" id="profile-phone">Loading...</p>
+                </div>
+              </div>
+              <div class="flex items-center space-x-3">
+                <i class="fas fa-map-marker-alt text-green-500 w-5"></i>
+                <div>
+                  <p class="text-sm text-gray-600">Address</p>
+                  <p class="font-medium" id="profile-address">Loading...</p>
+                </div>
+              </div>
+              <div class="flex items-center space-x-3">
+                <i class="fas fa-venus-mars text-purple-500 w-5"></i>
+                <div>
+                  <p class="text-sm text-gray-600">Gender</p>
+                  <p class="font-medium" id="profile-gender">Loading...</p>
+                </div>
+              </div>
+              <div class="flex items-center space-x-3">
+                <i class="fas fa-birthday-cake text-pink-500 w-5"></i>
+                <div>
+                  <p class="text-sm text-gray-600">Date of Birth</p>
+                  <p class="font-medium" id="profile-dob">Loading...</p>
+                </div>
+              </div>
+            </div>
+            <div class="pt-3 border-t border-gray-100">
+              <div class="flex items-center space-x-3">
+                <i class="fas fa-calendar-plus text-gray-500 w-5"></i>
+                <div>
+                  <p class="text-sm text-gray-600">Member Since</p>
+                  <p class="font-medium" id="profile-created">Loading...</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -389,11 +450,11 @@
       const originMap = new mapboxgl.Map({
         container: "origin-map",
         style: "mapbox://styles/mapbox/streets-v11",
-        center: [106.816666, -6.2],
+        center: [113.69943, -8.172329], // Jember
         zoom: 11,
       });
       const originMarker = new mapboxgl.Marker({ draggable: true })
-        .setLngLat([106.816666, -6.2])
+        .setLngLat([113.69943, -8.172329]) // Jember
         .addTo(originMap);
       originMarker.on("dragend", function () {
         const lngLat = originMarker.getLngLat();
@@ -420,14 +481,14 @@
       const destinationMap = new mapboxgl.Map({
         container: "destination-map",
         style: "mapbox://styles/mapbox/streets-v11",
-        center: [106.816666, -6.2],
+        center: [113.69943, -8.172329], // Jember
         zoom: 11,
       });
       const destinationMarker = new mapboxgl.Marker({
         draggable: true,
         color: "red",
       })
-        .setLngLat([106.816666, -6.2])
+        .setLngLat([113.69943, -8.172329]) // Jember
         .addTo(destinationMap);
       destinationMarker.on("dragend", function () {
         const lngLat = destinationMarker.getLngLat();

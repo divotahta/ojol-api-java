@@ -1,11 +1,11 @@
 server:
-  port: 8085
+  port: 8086
 
 spring:
   application:
-    name: auth-service
+    name: customer-service
   datasource:
-    url: jdbc:mysql://localhost:3306/user_db?useSSL=false&serverTimezone=UTC
+    url: jdbc:mysql://localhost:3306/customer_db?useSSL=false&serverTimezone=UTC
     username: root
     password: 
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -20,10 +20,4 @@ spring:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
-
-      
-
-jwt:
-  secret: ojolSecretKey2024ForJWTTokenGenerationAndValidation
-  expiration: 86400000 # 24 hours 
+      defaultZone: http://localhost:8761/eureka/ 

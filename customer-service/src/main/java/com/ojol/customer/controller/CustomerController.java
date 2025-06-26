@@ -2,6 +2,7 @@ package com.ojol.customer.controller;
 
 import com.ojol.customer.model.Customer;
 import com.ojol.customer.service.CustomerService;
+import com.ojol.customer.dto.UserDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +27,12 @@ public class CustomerController {
         return customer.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<Customer> getCustomerByUserId(@PathVariable String userId) {
+        Optional<Customer> customer = customerService.getCustomerByUserId(userId);
+        return customer.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    }
+
     @PostMapping
     public ResponseEntity<Customer> createCustomer(@RequestBody Customer customer) {
         return ResponseEntity.ok(customerService.createCustomer(customer));
@@ -42,5 +49,10 @@ public class CustomerController {
     public ResponseEntity<Void> deleteCustomer(@PathVariable Long id) {
         customerService.deleteCustomer(id);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/user-detail/{userId}")
+    public UserDto getUserDetail(@PathVariable Long userId) {
+        return customerService.getUserDetail(userId);
     }
 } 

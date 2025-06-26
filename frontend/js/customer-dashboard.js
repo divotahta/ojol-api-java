@@ -8,6 +8,7 @@ class CustomerDashboard {
     this.checkAuth();
     this.setupEventListeners();
     this.loadDashboard();
+    this.loadUserProfile();
   }
 
   async checkAuth() {
@@ -63,7 +64,6 @@ class CustomerDashboard {
   async loadDashboard() {
     try {
       ui.showLoading();
-      await this.loadUserProfile();
       const userId = localStorage.getItem("ojol_userId");
       this.orders = await api.getCustomerOrders(userId);
       await this.loadStatistics();
@@ -77,45 +77,64 @@ class CustomerDashboard {
     }
   }
 
+
   async loadUserProfile() {
+  
     try {
+      console.log("Loading user profile...");
       const userData = await api.getUserProfile();
-      const profileContainer = document.getElementById("user-profile");
+      console.log("User data received:", userData);
+      
+      const profileContainer = document.getElementById(
+        "customer-profile-detail"
+      );
+      console.log("Profile container:", profileContainer);
 
       if (profileContainer) {
         profileContainer.innerHTML = `
-                    <div class="space-y-3">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                                <i class="fas fa-user text-blue-600 text-xl"></i>
-                            </div>
-                            <div>
-                                <h3 class="font-semibold text-gray-800">${
-                                  userData.name || "N/A"
-                                }</h3>
-                                <p class="text-sm text-gray-600">${
-                                  userData.email || "N/A"
-                                }</p>
-                            </div>
-                        </div>
-                        <div class="border-t pt-3">
-                            <div class="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                    <span class="text-gray-600">Phone:</span>
-                                    <p class="font-medium">${
-                                      userData.phone || "N/A"
-                                    }</p>
-                                </div>
-                                <div>
-                                    <span class="text-gray-600">Address:</span>
-                                    <p class="font-medium">${
-                                      userData.address || "N/A"
-                                    }</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
+          <div class="space-y-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="flex items-center space-x-3">
+                <i class="fas fa-phone text-blue-500 w-5"></i>
+                <div>
+                  <p class="text-sm text-gray-600">Phone</p>
+                  <p class="font-medium" id="profile-phone">${userData.phone || "N/A"}</p>
+                </div>
+              </div>
+              <div class="flex items-center space-x-3">
+                <i class="fas fa-map-marker-alt text-green-500 w-5"></i>
+                <div>
+                  <p class="text-sm text-gray-600">Address</p>
+                  <p class="font-medium" id="profile-address">${userData.address || "N/A"}</p>
+                </div>
+              </div>
+              <div class="flex items-center space-x-3">
+                <i class="fas fa-venus-mars text-purple-500 w-5"></i>
+                <div>
+                  <p class="text-sm text-gray-600">Gender</p>
+                  <p class="font-medium" id="profile-gender">${this.getGenderText(userData.gender)}</p>
+                </div>
+              </div>
+              <div class="flex items-center space-x-3">
+                <i class="fas fa-birthday-cake text-pink-500 w-5"></i>
+                <div>
+                  <p class="text-sm text-gray-600">Date of Birth</p>
+                  <p class="font-medium" id="profile-dob">${userData.dateOfBirth ? new Date(userData.dateOfBirth).toLocaleDateString("id-ID") : "N/A"}</p>
+                </div>
+              </div>
+            </div>
+            <div class="pt-3 border-t border-gray-100">
+              <div class="flex items-center space-x-3">
+                <i class="fas fa-calendar-plus text-gray-500 w-5"></i>
+                <div>
+                  <p class="text-sm text-gray-600">Member Since</p>
+                  <p class="font-medium" id="profile-created">${userData.createdAt ? new Date(userData.createdAt).toLocaleDateString("id-ID") : "N/A"}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        console.log("Profile HTML updated");
       }
 
       // Update navigation
@@ -123,9 +142,116 @@ class CustomerDashboard {
       const userEmail = document.getElementById("user-email");
       if (userName) userName.textContent = userData.name || "Customer";
       if (userEmail) userEmail.textContent = userData.email || "";
+      console.log("Navigation updated");
     } catch (error) {
       console.error("Error loading user profile:", error);
     }
+  }
+
+
+  async editProfile() {
+    try {
+      ui.showLoading();
+      const customerData = await api.getUserProfile();
+
+      const html = `
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+          <i class="fas fa-user-edit text-red-500"></i>Edit Profile
+        </h2>
+        <form id="edit-profile-form" class="space-y-4">
+          <input type="hidden" id="edit-profile-id" value="${customerData.id}">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+              <input type="text" id="edit-profile-phone" value="${
+                customerData.phone || ""
+              }" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+              <select id="edit-profile-gender" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+                <option value="male" ${
+                  customerData.gender === "male" ? "selected" : ""
+                }>Male</option>
+                <option value="female" ${
+                  customerData.gender === "female" ? "selected" : ""
+                }>Female</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+              <input type="date" id="edit-profile-dob" value="${
+                customerData.dateOfBirth || ""
+              }" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Address</label>
+              <textarea id="edit-profile-address" rows="3" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500">${
+                customerData.address || ""
+              }</textarea>
+            </div>
+          </div>
+          <div class="flex justify-end space-x-3 pt-4">
+            <button type="button" onclick="customerDashboard.hideModal()" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+              Batal
+            </button>
+            <button type="submit" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
+              <i class="fas fa-save mr-1"></i>Update Profile
+            </button>
+          </div>
+        </form>
+      `;
+
+      this.showModal(html);
+
+      // Add form submit handler
+      document
+        .getElementById("edit-profile-form")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          await this.submitEditProfile();
+        });
+    } catch (error) {
+      console.error("Error loading customer profile for edit:", error);
+      ui.showError("Gagal memuat data profil");
+    } finally {
+      ui.hideLoading();
+    }
+  }
+
+  async submitEditProfile() {
+    try {
+      ui.showLoading();
+      const profileId = document.getElementById("edit-profile-id").value;
+      const profileData = {
+        phone: document.getElementById("edit-profile-phone").value,
+        address: document.getElementById("edit-profile-address").value,
+        gender: document.getElementById("edit-profile-gender").value,
+        date_of_birth: document.getElementById("edit-profile-dob").value,
+      };
+
+      const result = await api.updateCustomerProfile(profileId, profileData);
+      if (result) {
+        ui.showToast("Profile berhasil diupdate!");
+        this.hideModal();
+        await this.loadUserProfile();
+      } else {
+        ui.showError("Gagal mengupdate profile");
+      }
+    } catch (error) {
+      console.error("Error updating customer profile:", error);
+      ui.showError("Gagal mengupdate profile");
+    } finally {
+      ui.hideLoading();
+    }
+  }
+
+  getGenderText(gender) {
+    const texts = {
+      male: "Laki-laki",
+      female: "Perempuan",
+    };
+    return texts[gender] || gender || "N/A";
   }
 
   async loadStatistics() {
@@ -136,22 +262,44 @@ class CustomerDashboard {
         "completed-orders-count"
       );
       const totalPayments = document.getElementById("total-payments");
+      const todayPayments = document.getElementById("today-payments");
+
       const activeOrders = orders.filter(
         (order) => order.status === "in_progress" || order.status === "waiting"
       );
       const completedOrders = orders.filter(
         (order) => order.status === "completed"
       );
+
+      // Hitung total pembayaran semua waktu
       const totalPaymentValue = completedOrders.reduce(
-        (sum, order) => sum + (order.fare || 0),
+        (sum, order) => sum + (order.price || 100),
         0
       );
+
+      // Hitung total pembayaran hari ini
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set ke awal hari
+
+      const todayCompletedOrders = completedOrders.filter((order) => {
+        const orderDate = new Date(order.createdAt);
+        orderDate.setHours(0, 0, 0, 0);
+        return orderDate.getTime() === today.getTime();
+      });
+
+      const todayPaymentValue = todayCompletedOrders.reduce(
+        (sum, order) => sum + (order.price || 100),
+        0
+      );
+
       if (activeOrdersCount)
         activeOrdersCount.textContent = activeOrders.length;
       if (completedOrdersCount)
         completedOrdersCount.textContent = completedOrders.length;
       if (totalPayments)
         totalPayments.textContent = `Rp ${totalPaymentValue.toLocaleString()}`;
+      if (todayPayments)
+        todayPayments.textContent = `Rp ${todayPaymentValue.toLocaleString()}`;
     } catch (error) {
       console.error("Error loading statistics:", error);
     }
@@ -669,8 +817,11 @@ class CustomerDashboard {
 
 // Initialize customer dashboard when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
-  new CustomerDashboard();
+  window.customerDashboard = new CustomerDashboard();
 });
 
-const customerDashboard = new CustomerDashboard();
-customerDashboard.init();
+// Fallback initialization
+if (!window.customerDashboard) {
+  window.customerDashboard = new CustomerDashboard();
+  window.customerDashboard.init();
+}

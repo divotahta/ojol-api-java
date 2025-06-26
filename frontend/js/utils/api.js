@@ -82,8 +82,13 @@ class API {
   // User endpoints
   async getUserProfile() {
     const userId = localStorage.getItem("ojol_userId");
-    return this.request(`/users/${userId}`);
+    return this.request(`/users/${userId}/with-customer`);
   }
+
+  // async getCustomerProfile() {
+  //   const userId = localStorage.getItem("ojol_userId");
+  //   return this.request(`/users/${userId}/with-customer`);
+  // }
 
   async getAdminProfile() {
     return this.request("/users/profile");
@@ -113,6 +118,13 @@ class API {
   // Customer endpoints
   async getCustomerByUserId(userId) {
     return this.request(`/customers/user/${userId}`);
+  }
+
+  async updateCustomerProfile(customerId, customerData) {
+    return this.request(`/customers/${customerId}`, {
+      method: "PUT",
+      body: JSON.stringify(customerData),
+    });
   }
 
   // Ambil semua order user, frontend yang filter statistik/aktif/history
@@ -156,7 +168,7 @@ class API {
 
   async getDriverStatistics() {
     const driverId = localStorage.getItem("ojol_userId");
-    return this.request(`/orders/driver/${driverId}`);
+    return this.request(`/orders/driver/${driverId}/statistics`);
   }
 
   async getAllDrivers() {

@@ -3,31 +3,29 @@ package com.ojol.user.dto;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-public class UserDto {
+public class CustomerDto {
     private Long id;
-    private String name;
-    private String email;
-    private String role;
+    private String userId;
     private String phone;
     private String address;
     private String gender;
     private LocalDate dateOfBirth;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     // Default constructor
-    public UserDto() {}
+    public CustomerDto() {}
 
     // Constructor with all fields
-    public UserDto(Long id, String name, String email, String role, String phone, String address, String gender, LocalDate dateOfBirth, LocalDateTime createdAt) {
+    public CustomerDto(Long id, String userId, String phone, String address, String gender, LocalDate dateOfBirth, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
-        this.name = name;
-        this.email = email;
-        this.role = role;
+        this.userId = userId;
         this.phone = phone;
         this.address = address;
         this.gender = gender;
         this.dateOfBirth = dateOfBirth;
         this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
     // Getters and Setters
@@ -39,28 +37,12 @@ public class UserDto {
         this.id = id;
     }
 
-    public String getName() {
-        return name;
+    public String getUserId() {
+        return userId;
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getRole() {
-        return role;
-    }
-
-    public void setRole(String role) {
-        this.role = role;
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     public String getPhone() {
@@ -101,5 +83,13 @@ public class UserDto {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 } 
