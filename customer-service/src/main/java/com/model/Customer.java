@@ -1,5 +1,6 @@
 package com.ojol.customer.model;
 
+
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
