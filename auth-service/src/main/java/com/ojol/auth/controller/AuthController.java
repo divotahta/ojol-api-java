@@ -18,13 +18,22 @@ public class AuthController {
     @Autowired
     private AuthService authService;
 
+    @GetMapping("/ping")
+    public ResponseEntity<String> ping() {
+        return ResponseEntity.ok("Auth Service is alive");
+    }
+
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest loginRequest) {
         try {
             LoginResponse response = authService.login(loginRequest);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            System.err.println("Login error: " + e.getMessage());
+            e.printStackTrace();
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Invalid email or password");
+            return ResponseEntity.badRequest().body(errorResponse);
         }
     }
 
@@ -43,6 +52,7 @@ public class AuthController {
             
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            System.err.println("Token validation error: " + e.getMessage());
             Map<String, Object> response = new HashMap<>();
             response.put("valid", false);
             return ResponseEntity.ok(response);

@@ -43,15 +43,30 @@ public class Order {
     @Column(name = "status")
     private String status;
 
+    @Column(name = "price")
+    private BigDecimal price;
+
+    @Column(name = "distance")
+    private BigDecimal distance;
+
+    @Transient
+    private boolean paid;
+
+    @Column(name = "payment_method")
+    private String paymentMethod;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     public Order() {
         this.createdAt = LocalDateTime.now();
     }
 
     public Order(Long userId, String origin, BigDecimal originLat, BigDecimal originLng,
-                 String destination, BigDecimal destinationLat, BigDecimal destinationLng, String status) {
+                 String destination, BigDecimal destinationLat, BigDecimal destinationLng, String status, BigDecimal price, BigDecimal distance) {
         this.userId = userId;
         this.origin = origin;
         this.originLat = originLat;
@@ -60,6 +75,8 @@ public class Order {
         this.destinationLat = destinationLat;
         this.destinationLng = destinationLng;
         this.status = status;
+        this.price = price;
+        this.distance = distance;
         this.createdAt = LocalDateTime.now();
     }
 
@@ -74,6 +91,14 @@ public class Order {
 
     public Long getUserId() {
         return userId;
+    }
+
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+    
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
     }
 
     public void setUserId(Long userId) {
@@ -144,11 +169,43 @@ public class Order {
         this.status = status;
     }
 
+    public BigDecimal getPrice() {
+        return price;
+    }
+
+    public void setPrice(BigDecimal price) {
+        this.price = price;
+    }
+
+    public BigDecimal getDistance() {
+        return distance;
+    }
+
+    public void setDistance(BigDecimal distance) {
+        this.distance = distance;
+    }
+
+    public boolean isPaid() {
+        return paid;
+    }
+
+    public void setPaid(boolean paid) {
+        this.paid = paid;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 } 

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OjoL Frontend - Test Page</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-gray-100 min-h-screen">
+    <div class="max-w-3xl mx-auto px-4 py-8">
+      <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-gray-800 mb-4">
+          <i class="fas fa-motorcycle text-blue-600 mr-2"></i> OjoL Frontend
+          Test
+        </h1>
+        <p class="text-gray-600">Halaman test koneksi antar microservice</p>
+      </div>
+
+      <!-- Test API Connection -->
+      <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">
+          <i class="fas fa-plug text-green-600 mr-2"></i> API Connection Test
+        </h2>
+
+        <div id="service-status" class="space-y-3 mb-4">
+          <div class="flex justify-between">
+            <span>Eureka Server:</span>
+            <span id="eureka-status" class="text-gray-500">Checking...</span>
+          </div>
+          <div class="flex justify-between">
+            <span>API Gateway:</span>
+            <span id="gateway-status" class="text-gray-500">Checking...</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Auth Service:</span>
+            <span id="auth-status" class="text-gray-500">Checking...</span>
+          </div>
+        </div>
+
+        <button
+          onclick="testAPIConnection()"
+          class="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition-colors"
+        >
+          <i class="fas fa-sync-alt mr-2"></i> Test Connection
+        </button>
+      </div>
+
+      <!-- Test Results -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">
+          <i class="fas fa-clipboard-check text-green-600 mr-2"></i> Test
+          Results
+        </h2>
+        <div id="test-results" class="text-sm text-gray-600">
+          Klik tombol di atas untuk memulai tes koneksi.
+        </div>
+      </div>
+    </div>
+
+    <script>
+      async function testAPIConnection() {
+        const services = [
+          { name: "gateway", url: "http://localhost:8080/actuator/health" },
+          { name: "auth", url: "http://localhost:8080/api/auth/ping" },
+        ];
+
+        for (const service of services) {
+          const statusElement = document.getElementById(
+            `${service.name}-status`
+          );
+          if (!statusElement) continue;
+
+          try {
+            const response = await fetch(service.url, { method: "GET" });
+            statusElement.textContent = response.ok ? "✅ Online" : "❌ Error";
+            statusElement.className = response.ok
+              ? "text-green-600"
+              : "text-red-600";
+          } catch (error) {
+            statusElement.textContent = "❌ Offline";
+            statusElement.className = "text-red-600";
+          }
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        setTimeout(testAPIConnection, 1000);
+      });
+    </script>
+  </body>
+</html>

@@ -1,182 +1,551 @@
 <!DOCTYPE html>
 <html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customer Dashboard - Sistem Ojek Online</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OjoL - Customer Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#3B82F6',
-                        secondary: '#10B981'
-                    }
-                }
-            }
-        }
-    </script>
-</head>
-<body class="bg-gray-100">
-    <!-- Header -->
-    <header class="bg-white shadow-lg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center py-6">
-                <div class="flex items-center">
-                    <h1 class="text-2xl font-bold text-gray-900">🚗 Customer Dashboard</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <span id="userName" class="text-gray-700"></span>
-                    <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">
-                        Logout
-                    </button>
-                </div>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link href="css/styles.css" rel="stylesheet" />
+    <!-- Mapbox CSS & JS -->
+    <link
+      href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css"
+      rel="stylesheet"
+    />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.2/mapbox-gl-geocoder.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.2/mapbox-gl-geocoder.css"
+      type="text/css"
+    />
+  </head>
+  <body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg border-b border-gray-200">
+      <div class="max-w-7xl mx-auto px-4">
+        <div class="flex justify-between items-center py-4">
+          <div class="flex items-center space-x-3">
+            <i class="fas fa-motorcycle text-2xl text-blue-600"></i>
+            <div>
+              <h1 class="text-xl font-bold text-gray-800">OjoL</h1>
+              <p class="text-sm text-gray-600">Customer Dashboard</p>
             </div>
+          </div>
+          <div class="flex items-center space-x-4">
+            <div class="text-right">
+              <p class="text-sm font-medium text-gray-800" id="user-name">
+                Loading...
+              </p>
+              <p class="text-xs text-gray-600" id="user-email">Loading...</p>
+            </div>
+            <button
+              id="logout-btn"
+              class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              <i class="fas fa-sign-out-alt mr-2"></i>Logout
+            </button>
+          </div>
         </div>
-    </header>
+      </div>
+    </nav>
 
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Quick Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-blue-100 text-blue-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                        </svg>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Total Orders</p>
-                        <p id="totalOrders" class="text-2xl font-semibold text-gray-900">-</p>
-                    </div>
-                </div>
-            </div>
+    <main class="max-w-7xl mx-auto px-4 py-8">
+      <!-- Welcome Section -->
+      <div class="mb-8">
+        <h2 class="text-3xl font-bold text-gray-800 mb-2">Selamat Datang!</h2>
+        <p class="text-gray-600">Kelola pesanan dan profil Anda di sini</p>
+      </div>
 
-            <div class="bg-white rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-green-100 text-green-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Completed</p>
-                        <p id="completedOrders" class="text-2xl font-semibold text-gray-900">-</p>
-                    </div>
-                </div>
+      <!-- Quick Stats -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div
+          class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500"
+        >
+          <div class="flex items-center">
+            <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+              <i class="fas fa-clock text-xl"></i>
             </div>
-
-            <div class="bg-white rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-purple-100 text-purple-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
-                        </svg>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-600">Total Spent</p>
-                        <p id="totalSpent" class="text-2xl font-semibold text-gray-900">-</p>
-                    </div>
-                </div>
+            <div class="ml-4">
+              <h3 class="text-lg font-semibold text-gray-800">Pesanan Aktif</h3>
+              <p
+                id="active-orders-count"
+                class="text-2xl font-bold text-blue-600"
+              >
+                0
+              </p>
             </div>
+          </div>
         </div>
 
-        <!-- New Order Section -->
-        <div class="bg-white shadow rounded-lg p-6 mb-8">
-            <h2 class="text-xl font-semibold text-gray-900 mb-6">🚀 Buat Order Baru</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div
+          class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500"
+        >
+          <div class="flex items-center">
+            <div class="p-3 rounded-full bg-green-100 text-green-600">
+              <i class="fas fa-check text-xl"></i>
+            </div>
+            <div class="ml-4">
+              <h3 class="text-lg font-semibold text-gray-800">
+                Pesanan Selesai
+              </h3>
+              <p
+                id="completed-orders-count"
+                class="text-2xl font-bold text-green-600"
+              >
+                0
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500"
+        >
+          <div class="flex items-center">
+            <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+              <i class="fas fa-credit-card text-xl"></i>
+            </div>
+            <div class="ml-4">
+              <h3 class="text-lg font-semibold text-gray-800">
+                Total Pembayaran
+              </h3>
+              <p id="total-payments" class="text-2xl font-bold text-purple-600">
+                Rp 0
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-1 gap-8">
+        <!-- Order Creation -->
+        <div class="lg:col-span-2">
+          <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">
+              <i class="fas fa-plus-circle mr-2 text-blue-600"></i>Buat Pesanan
+              Baru
+            </h2>
+            <form id="order-form" class="space-y-4">
+              <input type="hidden" id="user_id" />
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Lokasi Asal</label>
-                    <input type="text" id="origin" placeholder="Masukkan lokasi asal" class="w-full border rounded-md px-3 py-2">
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-map-marker-alt mr-2 text-green-500"></i
+                    >Lokasi Pickup
+                  </label>
+                  <div id="origin-geocoder"></div>
+                  <input
+                    type="text"
+                    id="origin"
+                    required
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
+                    placeholder="Masukkan lokasi pickup"
+                  />
+                  <div
+                    id="origin-map"
+                    style="
+                      height: 200px;
+                      border-radius: 8px;
+                      margin-bottom: 8px;
+                    "
+                  ></div>
+                  <button
+                    type="button"
+                    id="btn-origin-current"
+                    class="mb-2 w-full bg-blue-100 text-blue-700 py-2 px-4 rounded hover:bg-blue-200 transition-colors font-medium"
+                  >
+                    <i class="fas fa-crosshairs mr-1"></i>Gunakan Lokasi Saya
+                    (Pickup)
+                  </button>
+                  <input
+                    type="text"
+                    id="origin_lat"
+                    class="w-full mb-1"
+                    placeholder="Latitude Pickup"
+                    readonly
+                  />
+                  <input
+                    type="text"
+                    id="origin_lng"
+                    class="w-full mb-1"
+                    placeholder="Longitude Pickup"
+                    readonly
+                  />
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Lokasi Tujuan</label>
-                    <input type="text" id="destination" placeholder="Masukkan lokasi tujuan" class="w-full border rounded-md px-3 py-2">
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-map-marker mr-2 text-red-500"></i>Tujuan
+                  </label>
+                  <div id="destination-geocoder"></div>
+                  <input
+                    type="text"
+                    id="destination"
+                    required
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
+                    placeholder="Masukkan tujuan"
+                  />
+                  <div
+                    id="destination-map"
+                    style="
+                      height: 200px;
+                      border-radius: 8px;
+                      margin-bottom: 8px;
+                    "
+                  ></div>
+                  <input
+                    type="text"
+                    id="destination_lat"
+                    class="w-full mb-1"
+                    placeholder="Latitude Tujuan"
+                    readonly
+                  />
+                  <input
+                    type="text"
+                    id="destination_lng"
+                    class="w-full mb-1"
+                    placeholder="Longitude Tujuan"
+                    readonly
+                  />
                 </div>
-            </div>
-            <div class="mt-4">
-                <button onclick="createOrder()" class="bg-primary text-white px-6 py-2 rounded-md hover:bg-blue-600">
-                    Buat Order
-                </button>
-            </div>
-        </div>
-
-        <!-- Tabs -->
-        <div class="mb-8">
-            <nav class="flex space-x-8">
-                <button onclick="showTab('active')" class="tab-btn active px-4 py-2 text-sm font-medium rounded-md">
-                    🔄 Active Orders
-                </button>
-                <button onclick="showTab('history')" class="tab-btn px-4 py-2 text-sm font-medium rounded-md">
-                    📋 Order History
-                </button>
-                <button onclick="showTab('payments')" class="tab-btn px-4 py-2 text-sm font-medium rounded-md">
-                    💳 Payment History
-                </button>
-            </nav>
-        </div>
-
-        <!-- Active Orders Tab -->
-        <div id="active-tab" class="tab-content">
-            <div class="bg-white shadow rounded-lg p-6">
-                <h2 class="text-xl font-semibold text-gray-900 mb-6">Active Orders</h2>
-                <div id="active-orders" class="space-y-4">
-                    <!-- Active orders will be loaded here -->
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="hidden">
+                  <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Status</label
+                  >
+                  <input
+                    type="text"
+                    id="status"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    value="waiting"
+                    readonly
+                    hidden
+                  />
                 </div>
-            </div>
-        </div>
-
-        <!-- Order History Tab -->
-        <div id="history-tab" class="tab-content hidden">
-            <div class="bg-white shadow rounded-lg p-6">
-                <h2 class="text-xl font-semibold text-gray-900 mb-6">Order History</h2>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asal</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tujuan</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="history-table" class="bg-white divide-y divide-gray-200">
-                            <!-- Data akan diisi oleh JavaScript -->
-                        </tbody>
-                    </table>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Harga (Rp)</label
+                  >
+                  <input
+                    type="number"
+                    id="price"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    placeholder="Otomatis/Manual"
+                  />
                 </div>
-            </div>
-        </div>
-
-        <!-- Payment History Tab -->
-        <div id="payments-tab" class="tab-content hidden">
-            <div class="bg-white shadow rounded-lg p-6">
-                <h2 class="text-xl font-semibold text-gray-900 mb-6">Payment History</h2>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment ID</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metode</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
-                            </tr>
-                        </thead>
-                        <tbody id="payments-table" class="bg-white divide-y divide-gray-200">
-                            <!-- Data akan diisi oleh JavaScript -->
-                        </tbody>
-                    </table>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Jarak (km)</label
+                  >
+                  <input
+                    type="number"
+                    step="0.01"
+                    id="distance"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    placeholder="Otomatis/Manual"
+                    readonly
+                  />
                 </div>
-            </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Metode Pembayaran</label
+                  >
+                  <select
+                    id="payment_method"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  >
+                    <option value="cash">Tunai</option>
+                    <option value="ewallet">E-Wallet</option>
+                    <option value="bank_transfer">Transfer Bank</option>
+                  </select>
+                </div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Waktu Dibuat</label
+                  >
+                  <input
+                    type="text"
+                    id="created_at"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    readonly
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Waktu Update</label
+                  >
+                  <input
+                    type="text"
+                    id="updated_at"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    readonly
+                  />
+                </div>
+              </div>
+              <button
+                type="submit"
+                class="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium"
+              >
+                <i class="fas fa-motorcycle mr-2"></i>Buat Pesanan
+              </button>
+            </form>
+          </div>
         </div>
+      </div>
+
+      <!-- Active Orders -->
+      <div class="mt-8 bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">
+          <i class="fas fa-list mr-2 text-blue-600"></i>Pesanan Aktif
+        </h2>
+        <div id="active-orders" class="space-y-4">
+          <!-- Active orders will be loaded here -->
+        </div>
+      </div>
+
+      <!-- Order History -->
+      <div class="mt-8 bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">
+          <i class="fas fa-history mr-2 text-blue-600"></i>Riwayat Pesanan
+        </h2>
+        <div id="order-history" class="space-y-4">
+          <!-- Order history will be loaded here -->
+        </div>
+      </div>
     </main>
 
-    <script src="customer-dashboard.js"></script>
-</body>
-</html> 
+    <!-- Loading Spinner -->
+    <div
+      id="loading"
+      class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    >
+      <div class="bg-white rounded-lg p-6 flex items-center space-x-4">
+        <div
+          class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"
+        ></div>
+        <span class="text-gray-700">Memproses...</span>
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div
+      id="toast"
+      class="hidden fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50"
+    >
+      <div class="flex items-center space-x-2">
+        <i class="fas fa-check-circle"></i>
+        <span id="toast-message"></span>
+      </div>
+    </div>
+
+    <!-- Error Toast -->
+    <div
+      id="error-toast"
+      class="hidden fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50"
+    >
+      <div class="flex items-center space-x-2">
+        <i class="fas fa-exclamation-circle"></i>
+        <span id="error-message"></span>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/utils/auth.js"></script>
+    <script src="js/utils/api.js"></script>
+    <script src="js/utils/ui.js"></script>
+    <script src="js/customer-dashboard.js"></script>
+    <script>
+      mapboxgl.accessToken =
+        "pk.eyJ1IjoiZGl2b3RhaHRhIiwiYSI6ImNtYThkcWo1bzBxcDIyaW9hbWpoZnJycXIifQ.e2G1z1pWPNbjv5fMwulRcg";
+
+      // Set user_id otomatis
+      const userId = localStorage.getItem("ojol_userId");
+      document.getElementById("user_id").value = userId;
+
+      // Pickup
+      const originGeocoder = new MapboxGeocoder({
+        accessToken: mapboxgl.accessToken,
+        placeholder: "Cari lokasi pickup",
+        mapboxgl: mapboxgl,
+      });
+      originGeocoder.addTo("#origin-geocoder");
+      originGeocoder.on("result", function (e) {
+        document.getElementById("origin").value = e.result.place_name;
+        document.getElementById("origin_lat").value = e.result.center[1];
+        document.getElementById("origin_lng").value = e.result.center[0];
+        originMarker.setLngLat(e.result.center);
+        originMap.flyTo({ center: e.result.center, zoom: 15 });
+        updateDistanceAndPrice();
+      });
+      const originMap = new mapboxgl.Map({
+        container: "origin-map",
+        style: "mapbox://styles/mapbox/streets-v11",
+        center: [106.816666, -6.2],
+        zoom: 11,
+      });
+      const originMarker = new mapboxgl.Marker({ draggable: true })
+        .setLngLat([106.816666, -6.2])
+        .addTo(originMap);
+      originMarker.on("dragend", function () {
+        const lngLat = originMarker.getLngLat();
+        document.getElementById("origin_lat").value = lngLat.lat;
+        document.getElementById("origin_lng").value = lngLat.lng;
+        updateDistanceAndPrice();
+      });
+
+      // Tujuan
+      const destinationGeocoder = new MapboxGeocoder({
+        accessToken: mapboxgl.accessToken,
+        placeholder: "Cari tujuan",
+        mapboxgl: mapboxgl,
+      });
+      destinationGeocoder.addTo("#destination-geocoder");
+      destinationGeocoder.on("result", function (e) {
+        document.getElementById("destination").value = e.result.place_name;
+        document.getElementById("destination_lat").value = e.result.center[1];
+        document.getElementById("destination_lng").value = e.result.center[0];
+        destinationMarker.setLngLat(e.result.center);
+        destinationMap.flyTo({ center: e.result.center, zoom: 15 });
+        updateDistanceAndPrice();
+      });
+      const destinationMap = new mapboxgl.Map({
+        container: "destination-map",
+        style: "mapbox://styles/mapbox/streets-v11",
+        center: [106.816666, -6.2],
+        zoom: 11,
+      });
+      const destinationMarker = new mapboxgl.Marker({
+        draggable: true,
+        color: "red",
+      })
+        .setLngLat([106.816666, -6.2])
+        .addTo(destinationMap);
+      destinationMarker.on("dragend", function () {
+        const lngLat = destinationMarker.getLngLat();
+        document.getElementById("destination_lat").value = lngLat.lat;
+        document.getElementById("destination_lng").value = lngLat.lng;
+        updateDistanceAndPrice();
+      });
+
+      // Set waktu otomatis
+      function setDateTimeFields() {
+        const now = new Date();
+        const iso = now.toISOString();
+        document.getElementById("created_at").value = iso;
+        document.getElementById("updated_at").value = iso;
+      }
+      setDateTimeFields();
+
+      document.getElementById("btn-origin-current").onclick = function () {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            function (pos) {
+              const lat = pos.coords.latitude;
+              const lng = pos.coords.longitude;
+              document.getElementById("origin_lat").value = lat;
+              document.getElementById("origin_lng").value = lng;
+              originMarker.setLngLat([lng, lat]);
+              originMap.flyTo({ center: [lng, lat], zoom: 15 });
+              // Reverse geocoding untuk isi alamat otomatis
+              fetch(
+                `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxgl.accessToken}`
+              )
+                .then((res) => res.json())
+                .then((data) => {
+                  if (data.features && data.features.length > 0) {
+                    document.getElementById("origin").value =
+                      data.features[0].place_name;
+                  }
+                  updateDistanceAndPrice();
+                });
+            },
+            function () {
+              alert("Gagal mendapatkan lokasi.");
+            }
+          );
+        } else {
+          alert("Geolocation tidak didukung browser ini.");
+        }
+      };
+      document.getElementById("btn-destination-current").onclick = function () {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            function (pos) {
+              const lat = pos.coords.latitude;
+              const lng = pos.coords.longitude;
+              document.getElementById("destination_lat").value = lat;
+              document.getElementById("destination_lng").value = lng;
+              destinationMarker.setLngLat([lng, lat]);
+              destinationMap.flyTo({ center: [lng, lat], zoom: 15 });
+              // Reverse geocoding untuk isi alamat otomatis
+              fetch(
+                `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxgl.accessToken}`
+              )
+                .then((res) => res.json())
+                .then((data) => {
+                  if (data.features && data.features.length > 0) {
+                    document.getElementById("destination").value =
+                      data.features[0].place_name;
+                  }
+                  updateDistanceAndPrice();
+                });
+            },
+            function () {
+              alert("Gagal mendapatkan lokasi.");
+            }
+          );
+        } else {
+          alert("Geolocation tidak didukung browser ini.");
+        }
+      };
+
+      function updateDistanceAndPrice() {
+        const lat1 = document.getElementById("origin_lat").value;
+        const lng1 = document.getElementById("origin_lng").value;
+        const lat2 = document.getElementById("destination_lat").value;
+        const lng2 = document.getElementById("destination_lng").value;
+        if (lat1 && lng1 && lat2 && lng2) {
+          // Mapbox Directions API
+          fetch(
+            `https://api.mapbox.com/directions/v5/mapbox/driving/${lng1},${lat1};${lng2},${lat2}?geometries=geojson&access_token=${mapboxgl.accessToken}`
+          )
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.routes && data.routes.length > 0) {
+                const distanceKm = data.routes[0].distance / 1000;
+                document.getElementById("distance").value =
+                  distanceKm.toFixed(2);
+                // Harga: motor 3000/km, mobil 5000/km
+                let pricePerKm = 3000;
+                document.getElementById("price").value = Math.round(
+                  distanceKm * pricePerKm
+                );
+              }
+            });
+        }
+      }
+      [
+        "origin_lat",
+        "origin_lng",
+        "destination_lat",
+        "destination_lng",
+      ].forEach((id) => {
+        document
+          .getElementById(id)
+          .addEventListener("change", updateDistanceAndPrice);
+      });
+      // Juga update saat marker digeser
+      originMarker.on("dragend", updateDistanceAndPrice);
+      destinationMarker.on("dragend", updateDistanceAndPrice);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+com\ojol\payment\client\UserClient.class
+com\ojol\payment\model\Payment.class
+com\ojol\payment\service\PaymentService.class
+com\ojol\payment\client\PaymentClient.class
+com\ojol\payment\dto\OrderDto.class
+com\ojol\payment\dto\PaymentDto.class
+com\ojol\payment\PaymentServiceApplication.class
+com\ojol\payment\repository\PaymentRepository.class
+com\ojol\payment\client\OrderClient.class
+com\ojol\payment\controller\PaymentController.class
+com\ojol\payment\dto\UserDto.class

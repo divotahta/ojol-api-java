@@ -2,12 +2,16 @@ package com.ojol.driver.controller;
 
 import com.ojol.driver.model.Driver;
 import com.ojol.driver.repository.DriverRepository;
+import com.ojol.driver.service.DriverService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -16,6 +20,9 @@ public class DriverController {
 
     @Autowired
     private DriverRepository driverRepository;
+
+    @Autowired
+    private DriverService driverService;
 
     @PostMapping
     public ResponseEntity<Driver> createDriver(@Valid @RequestBody Driver driver) {
@@ -41,9 +48,28 @@ public class DriverController {
         return driver.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/status/{status}")
-    public ResponseEntity<List<Driver>> getDriversByStatus(@PathVariable String status) {
-        List<Driver> drivers = driverRepository.findByStatus(status);
+    @GetMapping("/vehicle/{userId}")
+    public ResponseEntity<Driver> getDriverVehicle(@PathVariable Long userId) {
+        Optional<Driver> driver = driverRepository.findByUserId(userId);
+        return driver.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/statistics/{driverId}")
+    public ResponseEntity<Driver> getDriverStatistics(@PathVariable Long driverId) {
+        Optional<Driver> driver = driverRepository.findById(driverId);
+        return driver.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/status")
+    public ResponseEntity<Map<String, String>> getDriverStatus() {
+        Map<String, String> status = new HashMap<>();
+        status.put("status", "available");
+        return ResponseEntity.ok(status);
+    }
+
+    @GetMapping("/available")
+    public ResponseEntity<List<Driver>> getAvailableDrivers() {
+        List<Driver> drivers = driverRepository.findByStatus("available");
         return ResponseEntity.ok(drivers);
     }
 
@@ -71,16 +97,60 @@ public class DriverController {
         return ResponseEntity.notFound().build();
     }
 
-    @PutMapping("/{id}/status")
-    public ResponseEntity<Driver> updateDriverStatus(@PathVariable Long id, @RequestBody String status) {
-        Optional<Driver> driver = driverRepository.findById(id);
-        if (driver.isPresent()) {
-            Driver existingDriver = driver.get();
-            existingDriver.setStatus(status);
-            Driver updatedDriver = driverRepository.save(existingDriver);
-            return ResponseEntity.ok(updatedDriver);
+    @PutMapping("/status")
+    public ResponseEntity<?> updateStatus(@RequestBody Map<String, Object> body) {
+        Object userIdObj = body.get("userId");
+        Object statusObj = body.get("status");
+
+        if (userIdObj == null || statusObj == null) {
+            return ResponseEntity.badRequest().body("userId dan status tidak boleh kosong");
         }
-        return ResponseEntity.notFound().build();
+
+        Long userId = Long.valueOf(userIdObj.toString());
+        String newStatus = statusObj.toString();
+
+        Optional<Driver> driver = driverRepository.findByUserId(userId);
+        if (driver.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Driver d = driver.get();
+        d.setStatus(newStatus);
+        driverRepository.save(d);
+        return ResponseEntity.ok(Map.of("status", newStatus));
+    }
+
+    // Endpoint untuk mendapatkan order dengan status waiting
+    @GetMapping("/orders/waiting")
+    public ResponseEntity<?> getWaitingOrders() {
+        try {
+            List<Map<String, Object>> waitingOrders = driverService.getWaitingOrders();
+            return ResponseEntity.ok(waitingOrders);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: " + e.getMessage()));
+        }
+    }
+
+    // Endpoint untuk mendapatkan order berdasarkan driver ID
+    @GetMapping("/{driverId}/orders")
+    public ResponseEntity<?> getDriverOrders(@PathVariable Long driverId) {
+        try {
+            List<Map<String, Object>> driverOrders = driverService.getDriverOrders(driverId);
+            return ResponseEntity.ok(driverOrders);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: " + e.getMessage()));
+        }
+    }
+
+    // Endpoint untuk mendapatkan order berdasarkan status
+    @GetMapping("/orders/status/{status}")
+    public ResponseEntity<?> getOrdersByStatus(@PathVariable String status) {
+        try {
+            List<Map<String, Object>> orders = driverService.getOrdersByStatus(status);
+            return ResponseEntity.ok(orders);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Error: " + e.getMessage()));
+        }
     }
 
     @DeleteMapping("/{id}")
@@ -91,4 +161,17 @@ public class DriverController {
         }
         return ResponseEntity.notFound().build();
     }
-} 
+
+    // Inner class for status update request
+    public static class StatusUpdateRequest {
+        private String status;
+
+        public String getStatus() {
+            return status;
+        }
+
+        public void setStatus(String status) {
+            this.status = status;
+        }
+    }
+}

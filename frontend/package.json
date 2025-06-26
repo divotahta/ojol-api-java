@@ -1,0 +1,40 @@
+{
+  "name": "ojol-frontend",
+  "version": "1.0.0",
+  "description": "Frontend aplikasi untuk sistem Ojek Online (OjoL)",
+  "main": "index.html",
+  "scripts": {
+    "start": "http-server -p 3000 -c-1",
+    "dev": "http-server -p 3000 -c-1 --cors",
+    "build": "echo 'No build process needed for static files'",
+    "test": "echo 'No tests specified'",
+    "lint": "echo 'No linter configured'",
+    "format": "echo 'No formatter configured'"
+  },
+  "keywords": [
+    "ojek-online",
+    "transportation",
+    "microservices",
+    "frontend",
+    "javascript",
+    "html",
+    "css"
+  ],
+  "author": "OjoL Development Team",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/ojol.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/ojol/issues"
+  },
+  "homepage": "https://github.com/your-username/ojol#readme"
+} 
