@@ -135,7 +135,6 @@ Setiap service menggunakan database terpisah:
 ### 5. Order Management
 - **Status pesanan**: pending, accepted, in_progress, completed, cancelled
 - **Real-time tracking**
-- **Automatic assignment** ke driver terdekat
 - **Payment integration**
 
 ### 6. Payment System
@@ -160,7 +159,6 @@ MIT License - lihat file LICENSE untuk detail
 
 - **Backend Developer**: Spring Boot Microservices
 - **Frontend Developer**: JavaScript, HTML, CSS
-- **DevOps**: Docker, Kubernetes
 - **Database**: MySQL, JPA/Hibernate
 
 ## 📞 Support
