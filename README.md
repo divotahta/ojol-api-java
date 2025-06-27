@@ -114,7 +114,6 @@ Setiap service menggunakan database terpisah:
 ### 2. Customer Features
 - **Registrasi** dengan data lengkap
 - **Buat pesanan** ojek online
-- **Tracking pesanan** real-time
 - **Riwayat pesanan**
 - **Update profile**
 - **Pembayaran** online
@@ -131,8 +130,6 @@ Setiap service menggunakan database terpisah:
 - **Dashboard** dengan statistik sistem
 - **Manajemen user** (CRUD)
 - **Manajemen driver** (CRUD)
-- **Manajemen pesanan** (CRUD)
-- **Manajemen pembayaran** (CRUD)
 - **Monitoring** sistem real-time
 
 ### 5. Order Management
@@ -142,25 +139,10 @@ Setiap service menggunakan database terpisah:
 - **Payment integration**
 
 ### 6. Payment System
-- **Multiple payment methods**
 - **Payment status tracking**
 - **Payment history**
 - **Integration** dengan order system
 
-
-## 🔄 Deployment
-
-### Development
-- Local development dengan hot reload
-- Database menggunakan MySQL local
-- Frontend menggunakan http-server
-
-### Production
-- Docker containerization
-- Kubernetes orchestration
-- Cloud database (AWS RDS, Google Cloud SQL)
-- CDN untuk static assets
-- Load balancer untuk high availability
 
 ## 📝 Contributing
 
@@ -184,7 +166,7 @@ MIT License - lihat file LICENSE untuk detail
 ## 📞 Support
 
 Untuk pertanyaan dan support:
-- **Email**: support@ojol.com
+- **Email**: dievoblokagung@gmail.com
 - **Documentation**: [Wiki](https://github.com/ojol/wiki)
 - **Issues**: [GitHub Issues](https://github.com/ojol/issues)
 
