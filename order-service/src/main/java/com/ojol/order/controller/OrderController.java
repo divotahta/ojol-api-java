@@ -246,7 +246,7 @@ public class OrderController {
     public ResponseEntity<List<Order>> getOrderInProgress(@PathVariable Long driverId) {
         List<Order> orders = orderRepository.findByDriverId(driverId);
         List<Order> inProgressOrders = orders.stream()
-                .filter(order -> "in_progress".equalsIgnoreCase(order.getStatus()))
+                .filter(order -> "in_progress".equalsIgnoreCase(order.getStatus()) || "cancel_requested".equalsIgnoreCase(order.getStatus()))
                 .toList();
         return ResponseEntity.ok(inProgressOrders);
     }
@@ -256,10 +256,75 @@ public class OrderController {
         Optional<Order> order = orderRepository.findById(id);
         if (order.isPresent()) {
             Order existingOrder = order.get();
-            existingOrder.setStatus("cancelled");
+            
+            // Jika order sudah dalam proses (in_progress), ubah status menjadi cancel_requested
+            if ("in_progress".equalsIgnoreCase(existingOrder.getStatus())) {
+                existingOrder.setStatus("cancel_requested");
+            } else {
+                // Jika masih waiting, langsung cancel
+                existingOrder.setStatus("cancelled");
+            }
 
             Order updatedOrder = orderRepository.save(existingOrder);
             return ResponseEntity.ok(updatedOrder);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @PutMapping("/{id}/approve-cancellation")
+    public ResponseEntity<?> approveCancellation(@PathVariable Long id, @RequestParam Long driverId) {
+        Optional<Order> order = orderRepository.findById(id);
+        if (order.isPresent()) {
+            Order existingOrder = order.get();
+            
+            // Validasi bahwa driver yang approve adalah driver yang sedang menangani order
+            if (!driverId.equals(existingOrder.getDriverId())) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Hanya driver yang menangani order yang dapat menyetujui pembatalan"));
+            }
+            
+            // Validasi status order
+            if (!"cancel_requested".equalsIgnoreCase(existingOrder.getStatus())) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Order tidak dalam status request pembatalan"));
+            }
+            
+            existingOrder.setStatus("cancelled");
+            existingOrder.setUpdatedAt(LocalDateTime.now());
+            Order updatedOrder = orderRepository.save(existingOrder);
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "Pembatalan order berhasil disetujui",
+                "success", true,
+                "data", updatedOrder
+            ));
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @PutMapping("/{id}/reject-cancellation")
+    public ResponseEntity<?> rejectCancellation(@PathVariable Long id, @RequestParam Long driverId) {
+        Optional<Order> order = orderRepository.findById(id);
+        if (order.isPresent()) {
+            Order existingOrder = order.get();
+            
+            // Validasi bahwa driver yang reject adalah driver yang sedang menangani order
+            if (!driverId.equals(existingOrder.getDriverId())) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Hanya driver yang menangani order yang dapat menolak pembatalan"));
+            }
+            
+            // Validasi status order
+            if (!"cancel_requested".equalsIgnoreCase(existingOrder.getStatus())) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Order tidak dalam status request pembatalan"));
+            }
+            
+            existingOrder.setStatus("in_progress");
+            existingOrder.setUpdatedAt(LocalDateTime.now());
+            Order updatedOrder = orderRepository.save(existingOrder);
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "Pembatalan order ditolak, order dilanjutkan",
+                "success", true,
+                "data", updatedOrder
+            ));
         }
         return ResponseEntity.notFound().build();
     }
@@ -393,7 +458,8 @@ public class OrderController {
             // Hitung statistik
             long activeOrders = driverOrders.stream()
                     .filter(order -> "in_progress".equalsIgnoreCase(order.getStatus()) || 
-                                   "on_trip".equalsIgnoreCase(order.getStatus()))
+                                   "on_trip".equalsIgnoreCase(order.getStatus()) ||
+                                   "cancel_requested".equalsIgnoreCase(order.getStatus()))
                     .count();
             
             long completedOrders = driverOrders.stream()

@@ -265,6 +265,20 @@ class API {
     });
   }
 
+  async approveCancellation(orderId) {
+    const driverId = localStorage.getItem("ojol_userId");
+    return this.request(`/orders/${orderId}/approve-cancellation?driverId=${driverId}`, {
+      method: "PUT",
+    });
+  }
+
+  async rejectCancellation(orderId) {
+    const driverId = localStorage.getItem("ojol_userId");
+    return this.request(`/orders/${orderId}/reject-cancellation?driverId=${driverId}`, {
+      method: "PUT",
+    });
+  }
+
   async cancelOrder(orderId) {
     return this.request(`/orders/${orderId}/cancel`, {
       method: "PUT",

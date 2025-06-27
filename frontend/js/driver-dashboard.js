@@ -167,7 +167,7 @@ class DriverDashboard {
       const driverEmail = document.getElementById("driver-email");
       if (driverName) driverName.textContent = driverData.name || "Driver";
       if (driverEmail) driverEmail.textContent = driverData.email || "";
-      
+
       // Simpan nama driver ke localStorage untuk digunakan di navigation status
       localStorage.setItem("ojol_driverName", driverData.name || "Driver");
     } catch (error) {
@@ -395,7 +395,7 @@ class DriverDashboard {
       const statusData = await api.getDriverStatus();
       const currentStatus = statusData.status || "unavailable";
       const hasActiveOrder = await this.checkActiveOrder();
-      
+
       const canAcceptOrders = currentStatus === "available" && !hasActiveOrder;
 
       if (container) {
@@ -409,30 +409,10 @@ class DriverDashboard {
           return;
         }
 
-        // Tambahkan header dengan status driver
-        let headerHtml = `
-          <div class="mb-4 p-3 rounded-lg ${canAcceptOrders ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}">
-            <div class="flex items-center space-x-2">
-              <i class="fas ${canAcceptOrders ? 'fa-check-circle text-green-600' : 'fa-exclamation-triangle text-red-600'}"></i>
-              <span class="font-medium ${canAcceptOrders ? 'text-green-800' : 'text-red-800'}">
-                Status Driver: ${this.getStatusConfig(currentStatus).label}
-              </span>
-            </div>
-            <p class="text-sm ${canAcceptOrders ? 'text-green-700' : 'text-red-700'} mt-1">
-              ${canAcceptOrders 
-                ? 'Siap menerima pesanan baru' 
-                : currentStatus === "unavailable" 
-                  ? 'Tidak dapat menerima pesanan. Ubah status menjadi "Available" terlebih dahulu.'
-                  : 'Tidak dapat menerima pesanan. Selesaikan order yang sedang berlangsung terlebih dahulu.'
-              }
-            </p>
-          </div>
-        `;
-
-        container.innerHTML = headerHtml + orders
+        container.innerHTML = orders
           .map(
             (order) => `
-                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow ${!canAcceptOrders ? 'opacity-60' : ''}">
+                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                         <div class="flex justify-between items-start mb-3">
                             <div>
                                 <h3 class="font-semibold text-gray-800">Order #${
@@ -443,7 +423,7 @@ class DriverDashboard {
                                 ).toLocaleString()}</p>
                             </div>
                             <span class="px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
-                                Tersedia
+                                Menunggu Driver
                             </span>
                         </div>
                         <div class="space-y-2 text-sm mb-4">
@@ -455,90 +435,58 @@ class DriverDashboard {
                                 <i class="fas fa-map-marker text-red-500"></i>
                                 <span>${order.destination}</span>
                             </div>
-                            
-                            <div class="flex items-center space-x-2">
-                                <i class="fas fa-phone text-purple-500"></i>
-                                <span>Distance: ${
-                                  order.distance?.toLocaleString() || "0"
-                                } km</span>
-                            </div>
                             <div class="flex items-center space-x-2">
                                 <i class="fas fa-money-bill text-blue-500"></i>
                                 <span>Rp ${
                                   order.price?.toLocaleString() || "0"
                                 }</span>
                             </div>
+                            <div class="flex items-center space-x-2">
+                                <i class="fas fa-road text-blue-500"></i>
+                                <span>${
+                                  order.distance?.toLocaleString() || "0"
+                                } km</span>
+                            </div>
                         </div>
-                        <div class="flex items-center space-x-2">
-                          <button class="accept-btn w-full ${canAcceptOrders ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-400 cursor-not-allowed'} text-white py-2 px-4 rounded-lg transition-colors font-medium mt-2" 
-                                  data-order-id="${
-                                    order.id
-                                  }"
-                                  ${!canAcceptOrders ? 'disabled' : ''}>
-                            <i class="fas fa-check mr-2"></i>${canAcceptOrders ? 'Terima Pesanan' : 'Tidak Dapat Diterima'}
-                        </button>
-                      </div>
+                        <div class="flex flex-wrap gap-2 mt-4">
+                            <button class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-xs" onclick="driverDashboard.showOrderDetail(${
+                              order.id
+                            })">
+                                <i class="fas fa-eye mr-1"></i>Detail
+                            </button>
+                            <button class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs ${
+                              canAcceptOrders
+                                ? ""
+                                : "opacity-50 cursor-not-allowed"
+                            }" onclick="${
+              canAcceptOrders
+                ? `driverDashboard.acceptOrder(${order.id})`
+                : "return false"
+            }">
+                                <i class="fas fa-check mr-1"></i>${
+                                  canAcceptOrders
+                                    ? "Terima Order"
+                                    : "Tidak Bisa Terima"
+                                }
+                            </button>
+                        </div>
                     </div>
                 `
           )
           .join("");
-      }
-      
-      // Hanya tambahkan event listener jika driver bisa menerima order
-      if (canAcceptOrders) {
-        const acceptBtn = document.querySelectorAll(".accept-btn");
-        acceptBtn.forEach((btn) => {
-          btn.addEventListener("click", () =>
-            this.acceptOrder(btn.dataset.orderId)
-          );
-        });
+
+        // Tambahkan event listener untuk setiap tombol detail
+        container
+          .querySelectorAll("[onclick*='showOrderDetail']")
+          .forEach((button) => {
+            button.addEventListener("click", async (e) => {
+              const orderId = button.getAttribute("onclick").match(/\d+/)[0];
+              await this.showOrderDetail(orderId);
+            });
+          });
       }
     } catch (error) {
       console.error("Error loading available orders:", error);
-    }
-  }
-
-  async loadOrderInProgress() {
-    try {
-      const orders = await api.getOrderInProgress();
-      const container = document.getElementById("order-in-progress");
-
-      if (container) {
-        container.innerHTML = orders
-          .map(
-            (order) =>
-              `<div class="border border-yellow-200 rounded-lg p-4 hover:shadow-md transition-shadow"><div class="flex justify-between items-start mb-3"><div><h3 class="font-semibold text-gray-800">Order #${
-                order.id
-              }</h3><p class="text-sm text-gray-600">${new Date(
-                order.createdAt
-              ).toLocaleString()}</p></div><span class="px-3 py-1 rounded-full text-sm font-medium">${
-                order.status
-              }</span></div><div class="space-y-2 text-sm"><div class="flex items-center space-x-2"><i class="fas fa-map-marker-alt text-green-500"></i><span>${
-                order.origin
-              }</span></div><div class="flex items-center space-x-2"><i class="fas fa-map-marker text-red-500"></i><span>${
-                order.destination
-              }</span></div><div class="flex items-center space-x-2"><i class="fas fa-money-bill text-blue-500"></i><span>Rp ${
-                order.price?.toLocaleString() || "0"
-              }</span></div><div class="flex items-center space-x-2"><i class="fas fa-route text-blue-500"></i><span>${
-                order.distance?.toLocaleString() || "0"
-              } km</span></div></div>
-              <div class="flex flex-wrap gap-2 mt-4">
-                <button class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-xs" onclick="driverDashboard.showOrderDetail(${
-                  order.id
-                })"><i class='fas fa-info-circle mr-1'></i>Detail</button>
-                <button class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs" onclick="driverDashboard.updatePaymentStatus(${
-                  order.id
-                })"><i class='fas fa-money-check-alt mr-1'></i>Ubah Status Pembayaran</button>
-                <button class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs" onclick="driverDashboard.completeOrder(${
-                  order.id
-                })"><i class='fas fa-check mr-1'></i>Complete Order</button>
-              </div>
-              </div>`
-          )
-          .join("");
-      }
-    } catch (error) {
-      console.error("Error loading order in progress:", error);
     }
   }
 
@@ -575,7 +523,8 @@ class DriverDashboard {
                             <span class="px-3 py-1 rounded-full text-sm font-medium ${
                               order.status === "completed"
                                 ? "bg-green-100 text-green-800"
-                                : order.status === "in_progress"
+                                : order.status === "in_progress" ||
+                                  order.status === "cancel_requested"
                                 ? "bg-purple-100 text-purple-800"
                                 : order.status === "accepted"
                                 ? "bg-blue-100 text-blue-800"
@@ -586,6 +535,13 @@ class DriverDashboard {
                                 ${
                                   order.status === "completed"
                                     ? "Selesai"
+                                    : order.status === "in_progress" ||
+                                      order.status === "cancel_requested"
+                                    ? "Pesanan Dalam Proses"
+                                    : order.status === "accepted"
+                                    ? "Diterima"
+                                    : order.status === "pending"
+                                    ? "Menunggu"
                                     : order.status
                                 }
                             </span>
@@ -634,11 +590,44 @@ class DriverDashboard {
                 `;
       case "in_progress":
         return `
-                    <div class="flex space-x-2">
-                        <button onclick="driverDashboard.updateOrderStatus(${order.id}, 'completed')" 
-                                class="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">
-                            <i class="fas fa-check mr-2"></i>Selesai
+                    <div class="flex flex-wrap gap-2 mt-4">
+                        <button class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs" onclick="driverDashboard.updatePaymentStatus(${order.id})">
+                            <i class='fas fa-money-check-alt mr-1'></i>Ubah Status Pembayaran
                         </button>
+                        <button class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs ${
+                          order.paymentStatus === "paid" ? "" : "opacity-50 cursor-not-allowed"
+                        }" onclick="${
+                          order.paymentStatus === "paid" 
+                            ? `driverDashboard.showCompleteOrderModal(${order.id})`
+                            : "return false"
+                        }">
+                            <i class='fas fa-check mr-1'></i>Complete Order
+                        </button>
+                    </div>
+                    ${
+                      order.paymentStatus !== "paid" 
+                        ? '<div class="mt-2 text-xs text-red-600"><i class="fas fa-exclamation-triangle mr-1"></i>Order tidak dapat diselesaikan karena pembayaran belum lunas</div>'
+                        : ""
+                    }
+                `;
+      case "cancel_requested":
+        return `
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3 mt-3">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i class="fas fa-exclamation-triangle text-yellow-600"></i>
+                            <span class="text-yellow-800 font-medium">Customer meminta pembatalan</span>
+                        </div>
+                        <p class="text-sm text-yellow-700 mb-3">Customer ingin membatalkan pesanan ini. Pesanan masih dalam proses sampai Anda memutuskan.</p>
+                        <div class="flex space-x-2">
+                            <button onclick="driverDashboard.approveCancellation(${order.id})" 
+                                    class="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors">
+                                <i class="fas fa-check mr-2"></i>Setujui Pembatalan
+                            </button>
+                            <button onclick="driverDashboard.rejectCancellation(${order.id})" 
+                                    class="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">
+                                <i class="fas fa-times mr-2"></i>Tolak Pembatalan
+                            </button>
+                        </div>
                     </div>
                 `;
       default:
@@ -665,6 +654,65 @@ class DriverDashboard {
     }
   }
 
+  async approveCancellation(orderId) {
+    try {
+      ui.showLoading();
+
+      const confirmApprove = confirm(
+        "Yakin ingin menyetujui pembatalan pesanan ini? Pesanan akan dibatalkan."
+      );
+      if (!confirmApprove) {
+        ui.hideLoading();
+        return;
+      }
+
+      await api.approveCancellation(orderId);
+      ui.showToast("Pembatalan pesanan berhasil disetujui!");
+
+      // Update status driver menjadi available setelah order dibatalkan
+      await this.updateDriverStatusAutomatically("available");
+
+      // Reload data
+      await this.loadDriverOrders();
+      await this.loadInProgressOrders();
+      await this.loadDriverStatus();
+      await this.loadStatistics();
+    } catch (error) {
+      console.error("Error approving cancellation:", error);
+      ui.showError("Gagal menyetujui pembatalan pesanan");
+    } finally {
+      ui.hideLoading();
+    }
+  }
+
+  async rejectCancellation(orderId) {
+    try {
+      ui.showLoading();
+
+      const confirmReject = confirm(
+        "Yakin ingin menolak pembatalan dan melanjutkan pesanan ini? Pesanan akan dilanjutkan."
+      );
+      if (!confirmReject) {
+        ui.hideLoading();
+        return;
+      }
+
+      await api.rejectCancellation(orderId);
+      ui.showToast("Pembatalan ditolak, pesanan dilanjutkan!");
+
+      // Reload data
+      await this.loadDriverOrders();
+      await this.loadInProgressOrders();
+      await this.loadDriverStatus();
+      await this.loadStatistics();
+    } catch (error) {
+      console.error("Error rejecting cancellation:", error);
+      ui.showError("Gagal menolak pembatalan pesanan");
+    } finally {
+      ui.hideLoading();
+    }
+  }
+
   getStatusColor(status) {
     const colors = {
       pending: "bg-yellow-100 text-yellow-800",
@@ -672,6 +720,7 @@ class DriverDashboard {
       in_progress: "bg-purple-100 text-purple-800",
       completed: "bg-green-100 text-green-800",
       cancelled: "bg-red-100 text-red-800",
+      cancel_requested: "bg-purple-100 text-purple-800",
     };
     return colors[status] || "bg-gray-100 text-gray-800";
   }
@@ -680,9 +729,10 @@ class DriverDashboard {
     const texts = {
       waiting: "Menunggu",
       accepted: "Diterima",
-      in_progress: "Dalam Proses",
+      in_progress: "Pesanan Dalam Proses",
       completed: "Selesai",
       cancelled: "Dibatalkan",
+      cancel_requested: "Pesanan Dalam Proses",
     };
     return texts[status] || status;
   }
@@ -736,11 +786,15 @@ class DriverDashboard {
                       </div>
                       <div class="text-right">
                         <span class="px-3 py-1 rounded-full text-sm font-medium ${
-                          order.status === "in_progress"
+                          order.status === "in_progress" ||
+                          order.status === "cancel_requested"
                             ? "bg-purple-100 text-purple-600"
                             : "bg-gray-100 text-gray-600"
                         }">${
-              order.status === "in_progress" ? "Dalam Proses" : order.status
+              order.status === "in_progress" ||
+              order.status === "cancel_requested"
+                ? "Pesanan Dalam Proses"
+                : order.status
             }</span>
                         <p class="text-sm text-gray-500 rounded-full px-2 py-1"> <strong class="px-2 py-1 rounded-full ${
                           order.paymentStatus === "paid"
@@ -761,27 +815,20 @@ class DriverDashboard {
                       <div class="flex items-center space-x-2"><i class="fas fa-money-bill text-blue-500"></i><span>Rp ${
                         order.price?.toLocaleString() || "0"
                       }</span></div>
-                      <div class="flex items-center space-x-2"><i class="fas fa-route text-blue-500"></i><span>${
-                        order.distance?.toLocaleString() || "0"
-                      } km</span></div>
                     </div>
+                    ${this.getOrderActions(order)}
                     <div class="flex flex-wrap gap-2 mt-4">
                       <button class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded text-xs" onclick="driverDashboard.showOrderDetail(${
                         order.id
                       })"><i class='fas fa-info-circle mr-1'></i>Detail</button>
-                      <button class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs" onclick="driverDashboard.updatePaymentStatus(${
-                        order.id
-                      })"><i class='fas fa-money-check-alt mr-1'></i>Ubah Status Pembayaran</button>
-                      <button class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs" onclick="driverDashboard.completeOrder(${
-                        order.id
-                      })"><i class='fas fa-check mr-1'></i>Selesai</button>
                     </div>
-                  </div>`
+                  </div>
+                `
           )
           .join("");
       }
     } catch (error) {
-      console.error("Error loading in progress orders:", error);
+      console.error("Error loading in-progress orders:", error);
     }
   }
 
@@ -806,10 +853,8 @@ class DriverDashboard {
         payment.status === "paid" ? "Lunas" : "Menunggu Pembayaran";
 
       let html = `
-        <h2 class='text-lg font-bold mb-4 flex items-center gap-2'>
-          <i class="fas fa-money-check-alt text-yellow-500"></i>Ubah Status Pembayaran
-        </h2>
-        <div class='mb-4 grid grid-cols-1 gap-2 text-sm'>
+        <h2 class='text-lg font-bold mb-4 flex items-center gap-2'><i class="fas fa-money-check-alt text-yellow-500"></i>Ubah Status Pembayaran</h2>
+        <div class='mb-4 grid grid-cols-1 gap-2'>
           <div><span class='font-semibold text-gray-700'>Metode:</span> <span class='ml-2'>${
             payment.method || "-"
           }</span></div>
@@ -881,6 +926,106 @@ class DriverDashboard {
     }
   }
 
+  async showCompleteOrderModal(orderId) {
+    try {
+      ui.showLoading();
+      
+      // Ambil detail order untuk ditampilkan di modal
+      const orderResponse = await api.getOrderById(orderId);
+      const paymentData = await api.getPaymentByOrderId(orderId);
+      
+      ui.hideLoading();
+
+      // Handle struktur data order yang mungkin berbeda
+      const order = orderResponse.order || orderResponse;
+      
+      // Debug: log struktur data
+      console.log("Order Response:", orderResponse);
+      console.log("Order Data:", order);
+      console.log("Payment Data:", paymentData);
+
+      const html = `
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+          <i class="fas fa-check-circle text-green-500"></i>Konfirmasi Selesaikan Order
+        </h2>
+        <div class="mb-6">
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <h3 class="font-semibold text-blue-800 mb-2">Detail Order #${orderId}</h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex flex-col">
+                <span class="text-blue-700 font-medium mb-1">Asal:</span>
+                <span class="text-gray-800 break-words leading-relaxed">${order.origin || order.originAddress || "N/A"}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-blue-700 font-medium mb-1">Tujuan:</span>
+                <span class="text-gray-800 break-words leading-relaxed">${order.destination || order.destinationAddress || "N/A"}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-blue-700">Harga:</span>
+                <span class="font-bold text-green-600">Rp ${(order.price || order.totalPrice || 0).toLocaleString()}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-blue-700">Jarak:</span>
+                <span class="font-medium">${(order.distance || 0).toLocaleString()} km</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-blue-700">Status Pembayaran:</span>
+                <span class="px-2 py-1 rounded-full text-xs font-semibold ${
+                  paymentData?.status === "paid" 
+                    ? "bg-green-100 text-green-600" 
+                    : "bg-yellow-100 text-yellow-600"
+                }">
+                  ${paymentData?.status === "paid" ? "Lunas" : "Belum Lunas"}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div class="flex items-start space-x-2">
+              <i class="fas fa-exclamation-triangle text-yellow-600 mt-1"></i>
+              <div class="text-sm text-yellow-800">
+                <p class="font-medium mb-1">Penting:</p>
+                <ul class="space-y-1 text-xs">
+                  <li>• Pastikan customer sudah sampai di tujuan</li>
+                  <li>• Pastikan pembayaran sudah lunas</li>
+                  <li>• Order akan ditandai sebagai selesai</li>
+                  <li>• Status driver akan otomatis menjadi "Available"</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex justify-end space-x-3">
+          <button onclick="driverDashboard.hideModal()" 
+                  class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+            Batal
+          </button>
+          <button onclick="driverDashboard.confirmCompleteOrder(${orderId})" 
+                  class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+            <i class="fas fa-check mr-2"></i>Ya, Selesaikan Order
+          </button>
+        </div>
+      `;
+
+      this.showModal(html);
+    } catch (error) {
+      ui.hideLoading();
+      ui.showError("Gagal memuat detail order");
+      console.error("Error loading order detail for complete modal:", error);
+    }
+  }
+
+  async confirmCompleteOrder(orderId) {
+    try {
+      this.hideModal();
+      await this.completeOrder(orderId);
+    } catch (error) {
+      console.error("Error confirming complete order:", error);
+    }
+  }
+
   async loadDriverStatus() {
     try {
       const statusData = await api.getDriverStatus();
@@ -888,14 +1033,14 @@ class DriverDashboard {
 
       if (statusContainer) {
         const currentStatus = statusData.status || "unavailable";
-        
+
         // Cek apakah driver memiliki order aktif
         const hasActiveOrder = await this.checkActiveOrder();
-        
+
         // Jika ada order aktif, status otomatis menjadi "busy"
         let displayStatus = currentStatus;
         let isStatusLocked = false;
-        
+
         if (hasActiveOrder && currentStatus !== "busy") {
           displayStatus = "busy";
           isStatusLocked = true;
@@ -906,32 +1051,48 @@ class DriverDashboard {
           // Update status di backend jika berbeda
           await this.updateDriverStatusAutomatically("available");
         }
-        
+
         const statusConfig = this.getStatusConfig(displayStatus);
 
         statusContainer.innerHTML = `
           <div class="space-y-4">
             <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
               <div class="flex items-center space-x-3">
-                <div class="w-12 h-12 ${statusConfig.bgColor} rounded-full flex items-center justify-center">
-                  <i class="${statusConfig.icon} text-xl ${statusConfig.textColor}"></i>
+                <div class="w-12 h-12 ${
+                  statusConfig.bgColor
+                } rounded-full flex items-center justify-center">
+                  <i class="${statusConfig.icon} text-xl ${
+          statusConfig.textColor
+        }"></i>
                 </div>
                 <div>
                   <h3 class="font-semibold text-gray-800">Status Saat Ini</h3>
                   <p class="text-sm text-gray-600">${statusConfig.label}</p>
-                  ${isStatusLocked ? '<p class="text-xs text-orange-600 mt-1"><i class="fas fa-lock mr-1"></i>Status terkunci (ada order aktif)</p>' : ''}
+                  ${
+                    isStatusLocked
+                      ? '<p class="text-xs text-orange-600 mt-1"><i class="fas fa-lock mr-1"></i>Status terkunci (ada order aktif)</p>'
+                      : ""
+                  }
                 </div>
               </div>
-              <span class="px-3 py-1 rounded-full text-sm font-medium ${statusConfig.badgeClass}">
+              <span class="px-3 py-1 rounded-full text-sm font-medium ${
+                statusConfig.badgeClass
+              }">
                 ${statusConfig.badgeText}
               </span>
             </div>
             
             <div class="border-t pt-4">
               <button onclick="driverDashboard.showEditStatusModal()" 
-                      class="w-full ${isStatusLocked ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white py-3 px-4 rounded-lg transition-colors font-medium"
-                      ${isStatusLocked ? 'disabled' : ''}>
-                <i class="fas fa-edit mr-2"></i>${isStatusLocked ? 'Status Terkunci' : 'Ubah Status'}
+                      class="w-full ${
+                        isStatusLocked
+                          ? "bg-gray-400 cursor-not-allowed"
+                          : "bg-blue-600 hover:bg-blue-700"
+                      } text-white py-3 px-4 rounded-lg transition-colors font-medium"
+                      ${isStatusLocked ? "disabled" : ""}>
+                <i class="fas fa-edit mr-2"></i>${
+                  isStatusLocked ? "Status Terkunci" : "Ubah Status"
+                }
               </button>
             </div>
             
@@ -948,7 +1109,9 @@ class DriverDashboard {
                 <i class="fas fa-info-circle text-red-500"></i>
                 <span>Unavailable: Tidak tersedia</span>
               </div>
-              ${isStatusLocked ? `
+              ${
+                isStatusLocked
+                  ? `
               <div class="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                 <div class="flex items-center space-x-2">
                   <i class="fas fa-exclamation-triangle text-orange-500"></i>
@@ -956,12 +1119,14 @@ class DriverDashboard {
                 </div>
                 <p class="text-xs text-orange-600 mt-1">Status akan otomatis berubah menjadi "Available" setelah order selesai</p>
               </div>
-              ` : ''}
+              `
+                  : ""
+              }
             </div>
           </div>
         `;
       }
-      
+
       // Update navigation status juga
       await this.updateNavigationStatus();
     } catch (error) {
@@ -972,7 +1137,9 @@ class DriverDashboard {
   async checkActiveOrder() {
     try {
       const driverId = localStorage.getItem("ojol_userId");
-      const orders = await api.request(`/orders/driver/${driverId}/in-progress`);
+      const orders = await api.request(
+        `/orders/driver/${driverId}/in-progress`
+      );
       return Array.isArray(orders) && orders.length > 0;
     } catch (error) {
       console.error("Error checking active order:", error);
@@ -985,7 +1152,7 @@ class DriverDashboard {
       const userId = localStorage.getItem("ojol_userId");
       const statusData = {
         userId: parseInt(userId),
-        status: newStatus
+        status: newStatus,
       };
       await api.updateDriverStatus(statusData);
     } catch (error) {
@@ -1001,7 +1168,7 @@ class DriverDashboard {
         badgeClass: "bg-green-100 text-green-800",
         bgColor: "bg-green-100",
         textColor: "text-green-600",
-        icon: "fas fa-check-circle"
+        icon: "fas fa-check-circle",
       },
       busy: {
         label: "Sibuk",
@@ -1009,7 +1176,7 @@ class DriverDashboard {
         badgeClass: "bg-yellow-100 text-yellow-800",
         bgColor: "bg-yellow-100",
         textColor: "text-yellow-600",
-        icon: "fas fa-clock"
+        icon: "fas fa-clock",
       },
       unavailable: {
         label: "Tidak Tersedia",
@@ -1017,21 +1184,23 @@ class DriverDashboard {
         badgeClass: "bg-red-100 text-red-800",
         bgColor: "bg-red-100",
         textColor: "text-red-600",
-        icon: "fas fa-times-circle"
-      }
+        icon: "fas fa-times-circle",
+      },
     };
-    
+
     return configs[status] || configs.unavailable;
   }
 
   showEditStatusModal() {
     // Cek apakah ada order aktif
-    this.checkActiveOrder().then(hasActiveOrder => {
+    this.checkActiveOrder().then((hasActiveOrder) => {
       if (hasActiveOrder) {
-        ui.showError("Tidak dapat mengubah status karena ada order yang sedang aktif. Selesaikan order terlebih dahulu.");
+        ui.showError(
+          "Tidak dapat mengubah status karena ada order yang sedang aktif. Selesaikan order terlebih dahulu."
+        );
         return;
       }
-      
+
       this.showEditStatusForm();
     });
   }
@@ -1095,10 +1264,12 @@ class DriverDashboard {
     this.showModal(html);
 
     // Add form submit handler
-    document.getElementById("edit-status-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      await this.submitEditStatus();
-    });
+    document
+      .getElementById("edit-status-form")
+      .addEventListener("submit", async (e) => {
+        e.preventDefault();
+        await this.submitEditStatus();
+      });
   }
 
   async submitEditStatus() {
@@ -1115,23 +1286,22 @@ class DriverDashboard {
 
       const statusData = {
         userId: parseInt(userId),
-        status: newStatus
+        status: newStatus,
       };
 
       await api.updateDriverStatus(statusData);
       ui.showToast("Status driver berhasil diperbarui!");
       this.hideModal();
-      
+
       // Reload status setelah update
       await this.loadDriverStatus();
-      
+
       // Reload juga data lain yang mungkin terpengaruh
       await this.loadDriverProfile();
       await this.loadStatistics();
-      
     } catch (error) {
       console.error("Error updating driver status:", error);
-      
+
       // Handle specific error messages from backend
       if (error.responseData && error.responseData.message) {
         ui.showError(error.responseData.message);
@@ -1146,35 +1316,41 @@ class DriverDashboard {
   async acceptOrder(orderId) {
     try {
       ui.showLoading();
-      
+
       // Cek status driver terlebih dahulu
       const statusData = await api.getDriverStatus();
       const currentStatus = statusData.status || "unavailable";
-      
+
       // Validasi status driver
       if (currentStatus === "unavailable") {
-        ui.showError("Tidak dapat menerima order karena status driver 'Unavailable'. Ubah status menjadi 'Available' terlebih dahulu.");
+        ui.showError(
+          "Tidak dapat menerima order karena status driver 'Unavailable'. Ubah status menjadi 'Available' terlebih dahulu."
+        );
         return;
       }
-      
+
       if (currentStatus === "busy") {
-        ui.showError("Tidak dapat menerima order karena driver sedang dalam perjalanan. Selesaikan order yang sedang berlangsung terlebih dahulu.");
+        ui.showError(
+          "Tidak dapat menerima order karena driver sedang dalam perjalanan. Selesaikan order yang sedang berlangsung terlebih dahulu."
+        );
         return;
       }
-      
+
       // Cek apakah sudah ada order aktif
       const hasActiveOrder = await this.checkActiveOrder();
       if (hasActiveOrder) {
-        ui.showError("Tidak dapat menerima order karena masih ada order yang sedang aktif. Selesaikan order tersebut terlebih dahulu.");
+        ui.showError(
+          "Tidak dapat menerima order karena masih ada order yang sedang aktif. Selesaikan order tersebut terlebih dahulu."
+        );
         return;
       }
-      
+
       await api.acceptOrder(orderId);
       ui.showToast("Pesanan berhasil diterima!");
-      
+
       // Update status driver menjadi busy setelah menerima order
       await this.updateDriverStatusAutomatically("busy");
-      
+
       // Reload data
       await this.loadAvailableOrders();
       await this.loadInProgressOrders();
@@ -1182,7 +1358,7 @@ class DriverDashboard {
       await this.loadStatistics();
     } catch (error) {
       console.error("Error accepting order:", error);
-      
+
       // Handle specific error messages from backend
       if (error.responseData && error.responseData.message) {
         ui.showError(error.responseData.message);
@@ -1199,7 +1375,7 @@ class DriverDashboard {
     if (this.statusRefreshInterval) {
       clearInterval(this.statusRefreshInterval);
     }
-    
+
     // Set up new interval untuk refresh status setiap 30 detik
     this.statusRefreshInterval = setInterval(async () => {
       try {
@@ -1215,13 +1391,13 @@ class DriverDashboard {
       const statusData = await api.getDriverStatus();
       const currentStatus = statusData.status || "unavailable";
       const statusConfig = this.getStatusConfig(currentStatus);
-      
+
       // Update status di navigation bar
       const driverNameElement = document.getElementById("driver-name");
       if (driverNameElement) {
         // Ambil nama driver dari localStorage atau dari elemen yang sudah ada
         const driverName = localStorage.getItem("ojol_driverName") || "Driver";
-        
+
         driverNameElement.innerHTML = `
           ${driverName}
           <span class="ml-2 px-2 py-1 rounded-full text-xs font-medium ${statusConfig.badgeClass}">
@@ -1301,7 +1477,7 @@ DriverDashboard.prototype.showOrderDetail = async function (orderId) {
 
     // Ambil data customer dengan fallback yang lebih baik
     const customerName = userData?.name;
-    const customerPhone = customerData?.phone|| userData?.phone ;
+    const customerPhone = customerData?.phone || userData?.phone;
 
     let html = `
       <h2 class='text-lg font-bold mb-4 flex items-center gap-2'><i class="fas fa-info-circle text-blue-500"></i>Detail Order #${
@@ -1309,16 +1485,20 @@ DriverDashboard.prototype.showOrderDetail = async function (orderId) {
       }</h2>
       <div class='mb-4 grid grid-cols-1 gap-2'>
         <div><span class='font-semibold text-gray-700'>Status:</span> <span class='ml-2 px-2 py-1 rounded-full text-xs font-semibold ${
-          order.status === "in_progress"
+          order.status === "in_progress" || order.status === "cancel_requested"
             ? "bg-purple-100 text-purple-800"
             : order.status === "completed"
             ? "bg-green-100 text-green-800"
+            : order.status === "cancelled"
+            ? "bg-red-100 text-red-800"
             : "bg-yellow-100 text-yellow-800"
         }'>${
-      order.status === "in_progress"
-        ? "Dalam Proses"
+      order.status === "in_progress" || order.status === "cancel_requested"
+        ? "Pesanan Dalam Proses"
         : order.status === "completed"
         ? "Selesai"
+        : order.status === "cancelled"
+        ? "Dibatalkan"
         : order.status
     }</span></div>
         <div class='font-semibold text-gray-700 mt-2 flex items-center gap-2'><i class="fas fa-map-marker-alt text-green-500"></i> Asal</div>

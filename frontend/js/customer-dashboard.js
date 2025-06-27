@@ -281,7 +281,7 @@ class CustomerDashboard {
       const todayPayments = document.getElementById("today-payments");
 
       const activeOrders = orders.filter(
-        (order) => order.status === "in_progress" || order.status === "waiting"
+        (order) => order.status === "in_progress" || order.status === "cancel_requested" || order.status === "waiting"
       );
       const completedOrders = orders.filter(
         (order) => order.status === "completed"
@@ -325,7 +325,7 @@ class CustomerDashboard {
     try {
       const orders = this.orders || [];
       const activeOrders = orders.filter(
-        (order) => order.status === "in_progress" || order.status === "waiting"
+        (order) => order.status === "in_progress" || order.status === "cancel_requested" || order.status === "waiting"
       );
       const container = document.getElementById("active-orders");
 
@@ -381,10 +381,18 @@ class CustomerDashboard {
                           }</span>
                       </div>
                       <div class="flex items-center space-x-2">
-                          <button class="cancel-btn w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-colors font-medium mt-2" data-order-id="${
+                          <button class="cancel-btn w-full ${
+                            order.status === "cancel_requested" 
+                              ? "bg-orange-500 hover:bg-orange-600" 
+                              : "bg-red-500 hover:bg-red-600"
+                          } text-white py-2 px-4 rounded-lg transition-colors font-medium mt-2" data-order-id="${
                             order.id
                           }">
-                              <i class="fas fa-times mr-2"></i>Batalkan Pesanan
+                              <i class="fas fa-times mr-2"></i>${
+                                order.status === "cancel_requested" 
+                                  ? "Menunggu Persetujuan Driver" 
+                                  : "Batalkan Pesanan"
+                              }
                           </button>
                       </div>
                   </div>
@@ -407,6 +415,14 @@ class CustomerDashboard {
         container.querySelectorAll(".cancel-btn").forEach((button) => {
           button.addEventListener("click", async (e) => {
             const orderId = button.getAttribute("data-order-id");
+            const order = orders.find(o => o.id == orderId);
+            
+            // Jika status sudah cancel_requested, tidak bisa dibatalkan lagi
+            if (order && order.status === "cancel_requested") {
+              ui.showError("Pembatalan sudah diajukan dan sedang menunggu persetujuan driver. Pesanan masih dalam proses.");
+              return;
+            }
+            
             const confirmCancel = confirm("Yakin ingin membatalkan pesanan?");
             if (confirmCancel) {
               await this.cancelOrder(orderId);
@@ -421,8 +437,15 @@ class CustomerDashboard {
 
   async cancelOrder(orderId) {
     try {
-      await api.cancelOrder(orderId);
-      ui.showToast("Pesanan berhasil dibatalkan!");
+      const result = await api.cancelOrder(orderId);
+      
+      // Cek apakah order langsung dibatalkan atau menunggu persetujuan
+      if (result.status === "cancelled") {
+        ui.showToast("Pesanan berhasil dibatalkan!");
+      } else if (result.status === "cancel_requested") {
+        ui.showToast("Permintaan pembatalan telah dikirim ke driver. Pesanan masih dalam proses sampai driver menyetujui pembatalan.");
+      }
+      
       await this.loadActiveOrders();
       await this.loadDashboard();
     } catch (error) {
@@ -461,10 +484,24 @@ class CustomerDashboard {
                                   order.createdAt
                                 ).toLocaleString()}</p>
                             </div>
-                            <span class="px-3 py-1 rounded-full text-sm font-medium ${this.getStatusColor(
-                              order.status
-                            )}">
-                                ${this.getStatusText(order.status)}
+                            <span class="px-3 py-1 rounded-full text-sm font-medium ${
+                              order.status === "completed"
+                                ? "bg-green-100 text-green-800"
+                                : order.status === "in_progress" || order.status === "cancel_requested"
+                                ? "bg-purple-100 text-purple-800"
+                                : order.status === "cancelled"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }">
+                                ${
+                                  order.status === "completed"
+                                    ? "Selesai"
+                                    : order.status === "in_progress" || order.status === "cancel_requested"
+                                    ? "Pesanan Dalam Proses"
+                                    : order.status === "cancelled"
+                                    ? "Dibatalkan"
+                                    : order.status
+                                }
                             </span>
                         </div>
                         <div class="space-y-2 text-sm">
@@ -660,6 +697,18 @@ class CustomerDashboard {
     }
   }
 
+  getStatusText(status) {
+    const texts = {
+      waiting: "Menunggu",
+      accepted: "Diterima",
+      in_progress: "Pesanan Dalam Proses",
+      completed: "Selesai",
+      cancelled: "Dibatalkan",
+      cancel_requested: "Pesanan Dalam Proses",
+    };
+    return texts[status] || status;
+  }
+
   getStatusColor(status) {
     const colors = {
       waiting: "bg-yellow-100 text-yellow-800",
@@ -667,19 +716,9 @@ class CustomerDashboard {
       in_progress: "bg-purple-100 text-purple-800",
       completed: "bg-green-100 text-green-800",
       cancelled: "bg-red-100 text-red-800",
+      cancel_requested: "bg-purple-100 text-purple-800",
     };
     return colors[status] || "bg-gray-100 text-gray-800";
-  }
-
-  getStatusText(status) {
-    const texts = {
-      waiting: "Menunggu",
-      accepted: "Diterima",
-      in_progress: "Dalam Proses",
-      completed: "Selesai",
-      cancelled: "Dibatalkan",
-    };
-    return texts[status] || status;
   }
 
   // Method untuk menampilkan modal
@@ -743,6 +782,11 @@ class CustomerDashboard {
               ${this.getStatusText(order.status)}
             </span>
           </div>
+          ${
+            order.status === "cancel_requested"
+              ? '<div class="mt-2 text-sm text-orange-600"><i class="fas fa-info-circle mr-1"></i>Pembatalan sedang menunggu persetujuan driver. Pesanan masih dalam proses.</div>'
+              : ""
+          }
           <div class="flex justify-between items-center">
             <span class='font-semibold text-gray-700'>Pembayaran:</span>
             <span class='px-2 py-1 rounded-full text-xs font-semibold ${
