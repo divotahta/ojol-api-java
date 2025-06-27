@@ -1,56 +1,56 @@
 // Driver Dashboard for OjoL Frontend
 class DriverDashboard {
-    constructor() {
-        this.init();
+  constructor() {
+    this.init();
+  }
+
+  init() {
+    this.checkAuth();
+    this.setupEventListeners();
+    this.loadDashboard();
+  }
+
+  async checkAuth() {
+    if (!auth.isAuthenticated()) {
+      window.location.href = "index.html";
+      return;
     }
 
-    init() {
-        this.checkAuth();
-        this.setupEventListeners();
-        this.loadDashboard();
+    const role = auth.getRole();
+    if (role !== CONFIG.ROLES.DRIVER) {
+      // Redirect ke halaman yang sesuai dengan role, bukan logout
+      if (role === CONFIG.ROLES.ADMIN) {
+        window.location.href = "admin-dashboard.html";
+      } else if (role === CONFIG.ROLES.CUSTOMER) {
+        window.location.href = "customer-dashboard.html";
+      } else {
+        // Jika role tidak dikenal, baru logout
+        ui.showError("Role tidak valid.");
+        auth.logout();
+        window.location.href = "index.html";
+      }
+      return;
     }
 
-    async checkAuth() {
-        if (!auth.isAuthenticated()) {
-            window.location.href = "index.html";
-            return;
-        }
-
-        const role = auth.getRole();
-        if (role !== CONFIG.ROLES.DRIVER) {
-            // Redirect ke halaman yang sesuai dengan role, bukan logout
-            if (role === CONFIG.ROLES.ADMIN) {
-                window.location.href = "admin-dashboard.html";
-            } else if (role === CONFIG.ROLES.CUSTOMER) {
-                window.location.href = "customer-dashboard.html";
-            } else {
-                // Jika role tidak dikenal, baru logout
-                ui.showError("Role tidak valid.");
-                auth.logout();
-                window.location.href = "index.html";
-            }
-            return;
-        }
-
-        const isValid = await auth.validateToken();
-        if (!isValid) {
-            auth.logout();
-            window.location.href = "index.html";
-            return;
-        }
+    const isValid = await auth.validateToken();
+    if (!isValid) {
+      auth.logout();
+      window.location.href = "index.html";
+      return;
     }
+  }
 
-    setupEventListeners() {
+  setupEventListeners() {
     const logoutBtn = document.getElementById("logout-btn");
-        if (logoutBtn) {
+    if (logoutBtn) {
       logoutBtn.addEventListener("click", () => {
-                this.showLogoutConfirmation();
-            });
-        }
+        this.showLogoutConfirmation();
+      });
     }
+  }
 
-    showLogoutConfirmation() {
-        this.showModal(`
+  showLogoutConfirmation() {
+    this.showModal(`
             <div class="p-6 text-center">
                 <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i class="fas fa-sign-out-alt text-red-600 text-2xl"></i>
@@ -69,53 +69,59 @@ class DriverDashboard {
                 </div>
             </div>
         `);
-    }
+  }
 
-    confirmLogout() {
-        this.hideModal();
-        auth.logout();
-        window.location.href = "index.html";
-    }
+  confirmLogout() {
+    this.hideModal();
+    auth.logout();
+    window.location.href = "index.html";
+  }
 
-    async loadDashboard() {
-        try {
-            ui.showLoading();
-            
-            // Load driver profile
-            await this.loadDriverProfile();
-            
-            // Load driver status
-            await this.loadDriverStatus();
-            
-            // Load vehicle information
-            await this.loadVehicleInfo();
-            
-            // Load statistics
-            await this.loadStatistics();
-            
-            // Load available orders
-            await this.loadAvailableOrders();
-            
-            // Load driver orders
-            await this.loadDriverOrders();
-            
+  async loadDashboard() {
+    try {
+      ui.showLoading();
+
+      // Load driver profile
+      await this.loadDriverProfile();
+
+      // Load driver status (dengan auto-update berdasarkan order aktif)
+      await this.loadDriverStatus();
+
+      // Load vehicle information
+      await this.loadVehicleInfo();
+
+      // Load statistics
+      await this.loadStatistics();
+
+      // Load available orders
+      await this.loadAvailableOrders();
+
+      // Load driver orders
+      await this.loadDriverOrders();
+
       // Load in progress orders
       await this.loadInProgressOrders();
-        } catch (error) {
+
+      // Set up auto-refresh untuk status driver setiap 30 detik
+      this.setupStatusAutoRefresh();
+
+      // Tampilkan status driver di navigation
+      await this.updateNavigationStatus();
+    } catch (error) {
       console.error("Error loading dashboard:", error);
       ui.showError("Gagal memuat dashboard");
-        } finally {
-            ui.hideLoading();
-        }
+    } finally {
+      ui.hideLoading();
     }
+  }
 
-    async loadDriverProfile() {
-        try {
-            const driverData = await api.getDriverProfile();
+  async loadDriverProfile() {
+    try {
+      const driverData = await api.getDriverProfile();
       const profileContainer = document.getElementById("driver-profile");
-            
-            if (profileContainer) {
-                profileContainer.innerHTML = `
+
+      if (profileContainer) {
+        profileContainer.innerHTML = `
                     <div class="space-y-3">
                         <div class="flex items-center space-x-3">
                             <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -154,105 +160,54 @@ class DriverDashboard {
                         </div>
                     </div>
                 `;
-            }
+      }
 
-            // Update navigation
+      // Update navigation
       const driverName = document.getElementById("driver-name");
       const driverEmail = document.getElementById("driver-email");
       if (driverName) driverName.textContent = driverData.name || "Driver";
       if (driverEmail) driverEmail.textContent = driverData.email || "";
-        } catch (error) {
+      
+      // Simpan nama driver ke localStorage untuk digunakan di navigation status
+      localStorage.setItem("ojol_driverName", driverData.name || "Driver");
+    } catch (error) {
       console.error("Error loading driver profile:", error);
-        }
     }
+  }
 
-    async loadDriverStatus() {
-        try {
-            const statusData = await api.getDriverStatus();
-      const statusContainer = document.getElementById("driver-status-control");
-      const statusDisplay = document.getElementById("driver-status");
-            
-            if (statusContainer) {
-        const isOnline = statusData.status === "available";
-                statusContainer.innerHTML = `
-                    <div class="space-y-4">
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm font-medium text-gray-700">Status Driver:</span>
-                            <span class="px-3 py-1 rounded-full text-sm font-medium ${
-                              isOnline
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }">
-                                ${isOnline ? "Online" : "Unavailable"}
-                            </span>
-                        </div>
-                        <button id="toggle-status-btn" 
-                                class="w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-                                  isOnline
-                                    ? "bg-red-500 hover:bg-red-600 text-white"
-                                    : "bg-green-500 hover:bg-green-600 text-white"
-                                }">
-                            <i class="fas ${
-                              isOnline ? "fa-toggle-off" : "fa-toggle-on"
-                            } mr-2"></i>
-                            ${isOnline ? "Go Unavailable" : "Go Available"}
-                        </button>
-                        <div class="text-xs text-gray-500 text-center">
-                            ${
-                              isOnline
-                                ? "Anda sedang tersedia dan dapat menerima pesanan"
-                                : "Anda sedang tidak tersedia dan tidak dapat menerima pesanan"
-                            }
-                        </div>
-                    </div>
-                `;
-
-                // Add event listener for toggle button
-        const toggleBtn = document.getElementById("toggle-status-btn");
-                if (toggleBtn) {
-          toggleBtn.addEventListener("click", () => this.toggleStatus());
-                }
-            }
-
-            if (statusDisplay) {
-        statusDisplay.textContent =
-          statusData.status === "available" ? "Online" : "Offline";
-        statusDisplay.className = `text-lg font-bold ${
-          statusData.status === "available" ? "text-green-600" : "text-red-600"
-        }`;
-      }
-        } catch (error) {
-      console.error("Error loading driver status:", error);
-        }
-    }
-
-    async loadVehicleInfo() {
-        try {
-            const vehicleData = await api.getDriverVehicle();
+  async loadVehicleInfo() {
+    try {
+      const vehicleData = await api.getDriverVehicle();
       const vehicleContainer = document.getElementById("vehicle-info");
-            
-            if (vehicleContainer) {
-                vehicleContainer.innerHTML = `
+
+      if (vehicleContainer) {
+        vehicleContainer.innerHTML = `
                     <div class="space-y-3">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                                <i class="fas fa-motorcycle text-blue-600 text-xl"></i>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-motorcycle text-blue-600 text-xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-gray-800">${
+                                      vehicleData.vehicleModel || "N/A"
+                                    }</h3>
+                                    <p class="text-sm text-gray-600">${
+                                      vehicleData.plateNumber || "N/A"
+                                    }</p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 class="font-semibold text-gray-800">${
-                                  vehicleData.vehicleModel || "N/A"
-                                }</h3>
-                                <p class="text-sm text-gray-600">${
-                                  vehicleData.plateNumber || "N/A"
-                                }</p>
-                            </div>
+                            <button onclick="driverDashboard.editVehicleInfo()" 
+                                    class="text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50 transition-colors">
+                                <i class="fas fa-edit"></i>
+                            </button>
                         </div>
                         <div class="border-t pt-3">
                             <div class="space-y-2 text-sm">
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">Brand:</span>
                                     <span class="font-medium">${
-                                      vehicleData.vehicleBrand
+                                      vehicleData.vehicleBrand || "N/A"
                                     }</span>
                                 </div>
                                 <div class="flex justify-between">
@@ -261,20 +216,155 @@ class DriverDashboard {
                                       vehicleData.vehicleType || "N/A"
                                     }</span>
                                 </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Plate Number:</span>
+                                    <span class="font-medium">${
+                                      vehicleData.plateNumber || "N/A"
+                                    }</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 `;
-            }
-        } catch (error) {
+      }
+    } catch (error) {
       console.error("Error loading vehicle info:", error);
-        }
     }
+  }
 
-    async loadStatistics() {
-        try {
-            const stats = await api.getDriverStatistics();
-            
+  async editVehicleInfo() {
+    try {
+      ui.showLoading();
+      const vehicleData = await api.getDriverVehicle();
+
+      const html = `
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <i class="fas fa-edit text-blue-500"></i>Edit Informasi Kendaraan
+                </h2>
+                <form id="edit-vehicle-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Jenis Kendaraan</label>
+                        <select id="edit-vehicle-type" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500" required>
+                            <option value="motor" ${
+                              vehicleData.vehicleType === "motor"
+                                ? "selected"
+                                : ""
+                            }>Motor</option>
+                            <option value="mobil" ${
+                              vehicleData.vehicleType === "mobil"
+                                ? "selected"
+                                : ""
+                            }>Mobil</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Merek Kendaraan</label>
+                        <input type="text" id="edit-vehicle-brand" 
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500" 
+                               value="${vehicleData.vehicleBrand || ""}" 
+                               placeholder="Honda, Yamaha, dll" required />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Model Kendaraan</label>
+                        <input type="text" id="edit-vehicle-model" 
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500" 
+                               value="${vehicleData.vehicleModel || ""}" 
+                               placeholder="Vario, NMAX, dll" required />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nomor Plat</label>
+                        <input type="text" id="edit-plate-number" 
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500" 
+                               value="${vehicleData.plateNumber || ""}" 
+                               placeholder="B 1234 ABC" required />
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" onclick="driverDashboard.hideModal()" 
+                                class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                            Batal
+                        </button>
+                        <button type="submit" 
+                                class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                            <i class="fas fa-save mr-1"></i>Simpan
+                        </button>
+                    </div>
+                </form>
+            `;
+
+      this.showModal(html);
+
+      // Add form submit handler
+      document
+        .getElementById("edit-vehicle-form")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          await this.submitEditVehicleInfo();
+        });
+    } catch (error) {
+      console.error("Error loading vehicle data for edit:", error);
+      ui.showError("Gagal memuat data kendaraan");
+    } finally {
+      ui.hideLoading();
+    }
+  }
+
+  async submitEditVehicleInfo() {
+    try {
+      ui.showLoading();
+
+      const vehicleType = document.getElementById("edit-vehicle-type").value;
+      const vehicleBrand = document
+        .getElementById("edit-vehicle-brand")
+        .value.trim();
+      const vehicleModel = document
+        .getElementById("edit-vehicle-model")
+        .value.trim();
+      const plateNumber = document
+        .getElementById("edit-plate-number")
+        .value.trim();
+
+      // Validasi form
+      if (!vehicleType || !vehicleBrand || !vehicleModel || !plateNumber) {
+        ui.showError("Semua field wajib diisi!");
+        return;
+      }
+
+      // Validasi format nomor plat (sederhana)
+      const plateRegex = /^[A-Z]\s\d{1,4}\s[A-Z]{1,3}$/;
+      if (!plateRegex.test(plateNumber)) {
+        ui.showError("Format nomor plat tidak valid! Contoh: B 1234 ABC");
+        return;
+      }
+
+      const vehicleData = {
+        vehicleType,
+        vehicleBrand,
+        vehicleModel,
+        plateNumber,
+      };
+
+      await api.updateDriverVehicle(vehicleData);
+      ui.showToast("Informasi kendaraan berhasil diperbarui");
+      this.hideModal();
+      await this.loadVehicleInfo();
+    } catch (error) {
+      console.error("Error updating vehicle info:", error);
+
+      // Handle specific error messages from backend
+      if (error.responseData && error.responseData.message) {
+        ui.showError(error.responseData.message);
+      } else {
+        ui.showError("Gagal memperbarui informasi kendaraan: " + error.message);
+      }
+    } finally {
+      ui.hideLoading();
+    }
+  }
+
+  async loadStatistics() {
+    try {
+      const stats = await api.getDriverStatistics();
+
       const activeOrdersCount = document.getElementById("active-orders-count");
       const completedOrdersCount = document.getElementById(
         "completed-orders-count"
@@ -289,33 +379,60 @@ class DriverDashboard {
         todayEarnings.textContent = `Rp ${(
           stats.todayEarnings || 0
         ).toLocaleString()}`;
-        } catch (error) {
+    } catch (error) {
       console.error("Error loading statistics:", error);
-        }
     }
+  }
 
-    async loadAvailableOrders() {
-        try {
-            const orders = await api.getAvailableOrders();
+  async loadAvailableOrders() {
+    try {
+      const orders = await api.getAvailableOrders();
       const container = document.getElementById("available-orders");
       const customerName = document.getElementById("customer-name");
       const customerPhone = document.getElementById("customer-phone");
-            
-            if (container) {
-                if (orders.length === 0) {
-                    container.innerHTML = `
+
+      // Cek status driver untuk menentukan apakah bisa menerima order
+      const statusData = await api.getDriverStatus();
+      const currentStatus = statusData.status || "unavailable";
+      const hasActiveOrder = await this.checkActiveOrder();
+      
+      const canAcceptOrders = currentStatus === "available" && !hasActiveOrder;
+
+      if (container) {
+        if (orders.length === 0) {
+          container.innerHTML = `
                         <div class="text-center py-8 text-gray-500">
                             <i class="fas fa-inbox text-4xl mb-4"></i>
                             <p>Tidak ada pesanan tersedia</p>
                         </div>
                     `;
-                    return;
-                }
+          return;
+        }
 
-        container.innerHTML = orders
+        // Tambahkan header dengan status driver
+        let headerHtml = `
+          <div class="mb-4 p-3 rounded-lg ${canAcceptOrders ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}">
+            <div class="flex items-center space-x-2">
+              <i class="fas ${canAcceptOrders ? 'fa-check-circle text-green-600' : 'fa-exclamation-triangle text-red-600'}"></i>
+              <span class="font-medium ${canAcceptOrders ? 'text-green-800' : 'text-red-800'}">
+                Status Driver: ${this.getStatusConfig(currentStatus).label}
+              </span>
+            </div>
+            <p class="text-sm ${canAcceptOrders ? 'text-green-700' : 'text-red-700'} mt-1">
+              ${canAcceptOrders 
+                ? 'Siap menerima pesanan baru' 
+                : currentStatus === "unavailable" 
+                  ? 'Tidak dapat menerima pesanan. Ubah status menjadi "Available" terlebih dahulu.'
+                  : 'Tidak dapat menerima pesanan. Selesaikan order yang sedang berlangsung terlebih dahulu.'
+              }
+            </p>
+          </div>
+        `;
+
+        container.innerHTML = headerHtml + orders
           .map(
             (order) => `
-                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow ${!canAcceptOrders ? 'opacity-60' : ''}">
                         <div class="flex justify-between items-start mb-3">
                             <div>
                                 <h3 class="font-semibold text-gray-800">Order #${
@@ -353,10 +470,12 @@ class DriverDashboard {
                             </div>
                         </div>
                         <div class="flex items-center space-x-2">
-                          <button class="accept-btn w-full bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition-colors font-medium mt-2" data-order-id="${
-                            order.id
-                          }">
-                            <i class="fas fa-check mr-2"></i>Terima Pesanan
+                          <button class="accept-btn w-full ${canAcceptOrders ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-400 cursor-not-allowed'} text-white py-2 px-4 rounded-lg transition-colors font-medium mt-2" 
+                                  data-order-id="${
+                                    order.id
+                                  }"
+                                  ${!canAcceptOrders ? 'disabled' : ''}>
+                            <i class="fas fa-check mr-2"></i>${canAcceptOrders ? 'Terima Pesanan' : 'Tidak Dapat Diterima'}
                         </button>
                       </div>
                     </div>
@@ -364,12 +483,16 @@ class DriverDashboard {
           )
           .join("");
       }
-      const acceptBtn = document.querySelectorAll(".accept-btn");
-      acceptBtn.forEach((btn) => {
-        btn.addEventListener("click", () =>
-          this.acceptOrder(btn.dataset.orderId)
-        );
-      });
+      
+      // Hanya tambahkan event listener jika driver bisa menerima order
+      if (canAcceptOrders) {
+        const acceptBtn = document.querySelectorAll(".accept-btn");
+        acceptBtn.forEach((btn) => {
+          btn.addEventListener("click", () =>
+            this.acceptOrder(btn.dataset.orderId)
+          );
+        });
+      }
     } catch (error) {
       console.error("Error loading available orders:", error);
     }
@@ -413,28 +536,28 @@ class DriverDashboard {
               </div>`
           )
           .join("");
-            }
-        } catch (error) {
+      }
+    } catch (error) {
       console.error("Error loading order in progress:", error);
-        }
     }
+  }
 
-    async loadDriverOrders() {
-        try {
-            const orders = await api.getDriverOrders();
+  async loadDriverOrders() {
+    try {
+      const orders = await api.getDriverOrders();
       const container = document.getElementById("driver-orders");
       const customerName = document.getElementById("customer-name");
-            
-            if (container) {
-                if (orders.length === 0) {
-                    container.innerHTML = `
+
+      if (container) {
+        if (orders.length === 0) {
+          container.innerHTML = `
                         <div class="text-center py-8 text-gray-500">
                             <i class="fas fa-route text-4xl mb-4"></i>
                             <p>Belum ada pesanan</p>
                         </div>
                     `;
-                    return;
-                }
+          return;
+        }
 
         container.innerHTML = orders
           .map(
@@ -492,16 +615,16 @@ class DriverDashboard {
                 `
           )
           .join("");
-            }
-        } catch (error) {
+      }
+    } catch (error) {
       console.error("Error loading driver orders:", error);
-        }
     }
+  }
 
-    getOrderActions(order) {
-        switch (order.status) {
+  getOrderActions(order) {
+    switch (order.status) {
       case "accepted":
-                return `
+        return `
                     <div class="flex space-x-2">
                         <button onclick="driverDashboard.updateOrderStatus(${order.id}, 'in_progress')" 
                                 class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
@@ -510,7 +633,7 @@ class DriverDashboard {
                     </div>
                 `;
       case "in_progress":
-                return `
+        return `
                     <div class="flex space-x-2">
                         <button onclick="driverDashboard.updateOrderStatus(${order.id}, 'completed')" 
                                 class="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">
@@ -518,83 +641,32 @@ class DriverDashboard {
                         </button>
                     </div>
                 `;
-            default:
+      default:
         return "";
-        }
     }
+  }
 
-    async toggleStatus() {
-        try {
-            ui.showLoading();
-            
-            const currentStatus = await api.getDriverStatus();
-      const newStatus =
-        currentStatus.status === "available" ? "unavailable" : "available";
-      await api.updateDriverStatus({
-        userId: localStorage.getItem("ojol_userId"),
-        status: newStatus,
-      });
+  async updateOrderStatus(orderId, status) {
+    try {
+      ui.showLoading();
 
-      ui.showToast(
-        `Status berhasil diubah menjadi ${
-          newStatus === "available" ? "Online" : "Offline"
-        }`
-      );
-            
-            // Reload status and available orders
-            await this.loadDriverStatus();
-            await this.loadAvailableOrders();
-        } catch (error) {
-      console.error("Error toggling status:", error);
-      ui.showError("Gagal mengubah status");
-        } finally {
-            ui.hideLoading();
-        }
-    }
+      await api.updateOrderStatus(orderId, { status: status });
 
-    async acceptOrder(orderId) {
-        try {
-            ui.showLoading();
-            
-            await api.acceptOrder(orderId);
-            
-      ui.showToast("Pesanan berhasil diterima!");
-            
-            // Reload orders
-            await this.loadAvailableOrders();
-            await this.loadDriverOrders();
-            await this.loadStatistics();
-      await this.loadDashboard();
-    } catch (error) {
-      console.error("Error accepting order:", error);
-            
-      ui.showError("Gagal menerima pesanan");
-        } finally {
-            ui.hideLoading();
-        }
-    }
-
-    async updateOrderStatus(orderId, status) {
-        try {
-            ui.showLoading();
-            
-            await api.updateOrderStatus(orderId, { status: status });
-            
       ui.showToast("Status pesanan berhasil diperbarui!");
-            
-            // Reload orders
-            await this.loadDriverOrders();
-            await this.loadStatistics();
-        } catch (error) {
+
+      // Reload orders
+      await this.loadDriverOrders();
+      await this.loadStatistics();
+    } catch (error) {
       console.error("Error updating order status:", error);
       ui.showError("Gagal memperbarui status pesanan");
-        } finally {
-            ui.hideLoading();
-        }
+    } finally {
+      ui.hideLoading();
     }
+  }
 
-    getStatusColor(status) {
-        const colors = {
+  getStatusColor(status) {
+    const colors = {
       pending: "bg-yellow-100 text-yellow-800",
       accepted: "bg-blue-100 text-blue-800",
       in_progress: "bg-purple-100 text-purple-800",
@@ -602,10 +674,10 @@ class DriverDashboard {
       cancelled: "bg-red-100 text-red-800",
     };
     return colors[status] || "bg-gray-100 text-gray-800";
-    }
+  }
 
-    getStatusText(status) {
-        const texts = {
+  getStatusText(status) {
+    const texts = {
       waiting: "Menunggu",
       accepted: "Diterima",
       in_progress: "Dalam Proses",
@@ -794,18 +866,385 @@ class DriverDashboard {
       ui.showLoading();
       await api.completeOrder(orderId);
       ui.showToast("Order berhasil diselesaikan!");
+      
+      // Update status driver menjadi available setelah order selesai
+      await this.updateDriverStatusAutomatically("available");
+      
+      // Reload data
       await this.loadInProgressOrders();
+      await this.loadDriverStatus();
+      await this.loadStatistics();
     } catch (error) {
       ui.showError("Gagal menyelesaikan order");
     } finally {
       ui.hideLoading();
     }
+  }
+
+  async loadDriverStatus() {
+    try {
+      const statusData = await api.getDriverStatus();
+      const statusContainer = document.getElementById("driver-status-control");
+
+      if (statusContainer) {
+        const currentStatus = statusData.status || "unavailable";
+        
+        // Cek apakah driver memiliki order aktif
+        const hasActiveOrder = await this.checkActiveOrder();
+        
+        // Jika ada order aktif, status otomatis menjadi "busy"
+        let displayStatus = currentStatus;
+        let isStatusLocked = false;
+        
+        if (hasActiveOrder && currentStatus !== "busy") {
+          displayStatus = "busy";
+          isStatusLocked = true;
+          // Update status di backend jika berbeda
+          await this.updateDriverStatusAutomatically("busy");
+        } else if (!hasActiveOrder && currentStatus === "busy") {
+          displayStatus = "available";
+          // Update status di backend jika berbeda
+          await this.updateDriverStatusAutomatically("available");
+        }
+        
+        const statusConfig = this.getStatusConfig(displayStatus);
+
+        statusContainer.innerHTML = `
+          <div class="space-y-4">
+            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div class="flex items-center space-x-3">
+                <div class="w-12 h-12 ${statusConfig.bgColor} rounded-full flex items-center justify-center">
+                  <i class="${statusConfig.icon} text-xl ${statusConfig.textColor}"></i>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-gray-800">Status Saat Ini</h3>
+                  <p class="text-sm text-gray-600">${statusConfig.label}</p>
+                  ${isStatusLocked ? '<p class="text-xs text-orange-600 mt-1"><i class="fas fa-lock mr-1"></i>Status terkunci (ada order aktif)</p>' : ''}
+                </div>
+              </div>
+              <span class="px-3 py-1 rounded-full text-sm font-medium ${statusConfig.badgeClass}">
+                ${statusConfig.badgeText}
+              </span>
+            </div>
+            
+            <div class="border-t pt-4">
+              <button onclick="driverDashboard.showEditStatusModal()" 
+                      class="w-full ${isStatusLocked ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white py-3 px-4 rounded-lg transition-colors font-medium"
+                      ${isStatusLocked ? 'disabled' : ''}>
+                <i class="fas fa-edit mr-2"></i>${isStatusLocked ? 'Status Terkunci' : 'Ubah Status'}
+              </button>
+            </div>
+            
+            <div class="text-sm text-gray-600 space-y-2">
+              <div class="flex items-center space-x-2">
+                <i class="fas fa-info-circle text-blue-500"></i>
+                <span>Available: Siap menerima pesanan</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <i class="fas fa-info-circle text-yellow-500"></i>
+                <span>Busy: Sedang dalam perjalanan (otomatis)</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <i class="fas fa-info-circle text-red-500"></i>
+                <span>Unavailable: Tidak tersedia</span>
+              </div>
+              ${isStatusLocked ? `
+              <div class="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                <div class="flex items-center space-x-2">
+                  <i class="fas fa-exclamation-triangle text-orange-500"></i>
+                  <span class="text-orange-700 font-medium">Status terkunci karena ada order aktif</span>
+                </div>
+                <p class="text-xs text-orange-600 mt-1">Status akan otomatis berubah menjadi "Available" setelah order selesai</p>
+              </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }
+      
+      // Update navigation status juga
+      await this.updateNavigationStatus();
+    } catch (error) {
+      console.error("Error loading driver status:", error);
     }
+  }
+
+  async checkActiveOrder() {
+    try {
+      const driverId = localStorage.getItem("ojol_userId");
+      const orders = await api.request(`/orders/driver/${driverId}/in-progress`);
+      return Array.isArray(orders) && orders.length > 0;
+    } catch (error) {
+      console.error("Error checking active order:", error);
+      return false;
+    }
+  }
+
+  async updateDriverStatusAutomatically(newStatus) {
+    try {
+      const userId = localStorage.getItem("ojol_userId");
+      const statusData = {
+        userId: parseInt(userId),
+        status: newStatus
+      };
+      await api.updateDriverStatus(statusData);
+    } catch (error) {
+      console.error("Error updating driver status automatically:", error);
+    }
+  }
+
+  getStatusConfig(status) {
+    const configs = {
+      available: {
+        label: "Tersedia",
+        badgeText: "Available",
+        badgeClass: "bg-green-100 text-green-800",
+        bgColor: "bg-green-100",
+        textColor: "text-green-600",
+        icon: "fas fa-check-circle"
+      },
+      busy: {
+        label: "Sibuk",
+        badgeText: "Busy",
+        badgeClass: "bg-yellow-100 text-yellow-800",
+        bgColor: "bg-yellow-100",
+        textColor: "text-yellow-600",
+        icon: "fas fa-clock"
+      },
+      unavailable: {
+        label: "Tidak Tersedia",
+        badgeText: "Unavailable",
+        badgeClass: "bg-red-100 text-red-800",
+        bgColor: "bg-red-100",
+        textColor: "text-red-600",
+        icon: "fas fa-times-circle"
+      }
+    };
+    
+    return configs[status] || configs.unavailable;
+  }
+
+  showEditStatusModal() {
+    // Cek apakah ada order aktif
+    this.checkActiveOrder().then(hasActiveOrder => {
+      if (hasActiveOrder) {
+        ui.showError("Tidak dapat mengubah status karena ada order yang sedang aktif. Selesaikan order terlebih dahulu.");
+        return;
+      }
+      
+      this.showEditStatusForm();
+    });
+  }
+
+  showEditStatusForm() {
+    const html = `
+      <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+        <i class="fas fa-edit text-blue-500"></i>Ubah Status Driver
+      </h2>
+      <form id="edit-status-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Pilih Status</label>
+          <select id="edit-driver-status" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500" required>
+            <option value="available">Available - Siap menerima pesanan</option>
+            
+            <option value="unavailable">Unavailable - Tidak tersedia</option>
+          </select>
+        </div>
+        
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div class="flex items-start space-x-2">
+            <i class="fas fa-info-circle text-blue-500 mt-1"></i>
+            <div class="text-sm text-blue-800">
+              <p class="font-medium mb-1">Keterangan Status:</p>
+              <ul class="space-y-1 text-xs">
+                <li><strong>Available:</strong> Driver siap menerima pesanan baru</li>
+                <li><strong>Busy:</strong> Driver sedang dalam perjalanan dengan pesanan (otomatis saat ada order aktif)</li>
+                <li><strong>Unavailable:</strong> Driver tidak tersedia untuk sementara</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <div class="flex items-start space-x-2">
+            <i class="fas fa-exclamation-triangle text-yellow-500 mt-1"></i>
+            <div class="text-sm text-yellow-800">
+              <p class="font-medium mb-1">Penting:</p>
+              <ul class="space-y-1 text-xs">
+                <li>Status akan otomatis menjadi "Busy" ketika ada order aktif</li>
+                <li>Status akan otomatis menjadi "Available" setelah order selesai</li>
+                <li>Status "Unavailable" hanya untuk kondisi darurat atau istirahat</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex justify-end space-x-3 pt-4">
+          <button type="button" onclick="driverDashboard.hideModal()" 
+                  class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+            Batal
+          </button>
+          <button type="submit" 
+                  class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+            <i class="fas fa-save mr-1"></i>Simpan Status
+          </button>
+        </div>
+      </form>
+    `;
+
+    this.showModal(html);
+
+    // Add form submit handler
+    document.getElementById("edit-status-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      await this.submitEditStatus();
+    });
+  }
+
+  async submitEditStatus() {
+    try {
+      ui.showLoading();
+
+      const newStatus = document.getElementById("edit-driver-status").value;
+      const userId = localStorage.getItem("ojol_userId");
+
+      if (!newStatus || !userId) {
+        ui.showError("Data status tidak lengkap!");
+        return;
+      }
+
+      const statusData = {
+        userId: parseInt(userId),
+        status: newStatus
+      };
+
+      await api.updateDriverStatus(statusData);
+      ui.showToast("Status driver berhasil diperbarui!");
+      this.hideModal();
+      
+      // Reload status setelah update
+      await this.loadDriverStatus();
+      
+      // Reload juga data lain yang mungkin terpengaruh
+      await this.loadDriverProfile();
+      await this.loadStatistics();
+      
+    } catch (error) {
+      console.error("Error updating driver status:", error);
+      
+      // Handle specific error messages from backend
+      if (error.responseData && error.responseData.message) {
+        ui.showError(error.responseData.message);
+      } else {
+        ui.showError("Gagal memperbarui status driver: " + error.message);
+      }
+    } finally {
+      ui.hideLoading();
+    }
+  }
+
+  async acceptOrder(orderId) {
+    try {
+      ui.showLoading();
+      
+      // Cek status driver terlebih dahulu
+      const statusData = await api.getDriverStatus();
+      const currentStatus = statusData.status || "unavailable";
+      
+      // Validasi status driver
+      if (currentStatus === "unavailable") {
+        ui.showError("Tidak dapat menerima order karena status driver 'Unavailable'. Ubah status menjadi 'Available' terlebih dahulu.");
+        return;
+      }
+      
+      if (currentStatus === "busy") {
+        ui.showError("Tidak dapat menerima order karena driver sedang dalam perjalanan. Selesaikan order yang sedang berlangsung terlebih dahulu.");
+        return;
+      }
+      
+      // Cek apakah sudah ada order aktif
+      const hasActiveOrder = await this.checkActiveOrder();
+      if (hasActiveOrder) {
+        ui.showError("Tidak dapat menerima order karena masih ada order yang sedang aktif. Selesaikan order tersebut terlebih dahulu.");
+        return;
+      }
+      
+      await api.acceptOrder(orderId);
+      ui.showToast("Pesanan berhasil diterima!");
+      
+      // Update status driver menjadi busy setelah menerima order
+      await this.updateDriverStatusAutomatically("busy");
+      
+      // Reload data
+      await this.loadAvailableOrders();
+      await this.loadInProgressOrders();
+      await this.loadDriverStatus();
+      await this.loadStatistics();
+    } catch (error) {
+      console.error("Error accepting order:", error);
+      
+      // Handle specific error messages from backend
+      if (error.responseData && error.responseData.message) {
+        ui.showError(error.responseData.message);
+      } else {
+        ui.showError("Gagal menerima pesanan: " + error.message);
+      }
+    } finally {
+      ui.hideLoading();
+    }
+  }
+
+  setupStatusAutoRefresh() {
+    // Clear existing interval if any
+    if (this.statusRefreshInterval) {
+      clearInterval(this.statusRefreshInterval);
+    }
+    
+    // Set up new interval untuk refresh status setiap 30 detik
+    this.statusRefreshInterval = setInterval(async () => {
+      try {
+        await this.loadDriverStatus();
+      } catch (error) {
+        console.error("Error in status auto-refresh:", error);
+      }
+    }, 30000); // 30 detik
+  }
+
+  async updateNavigationStatus() {
+    try {
+      const statusData = await api.getDriverStatus();
+      const currentStatus = statusData.status || "unavailable";
+      const statusConfig = this.getStatusConfig(currentStatus);
+      
+      // Update status di navigation bar
+      const driverNameElement = document.getElementById("driver-name");
+      if (driverNameElement) {
+        // Ambil nama driver dari localStorage atau dari elemen yang sudah ada
+        const driverName = localStorage.getItem("ojol_driverName") || "Driver";
+        
+        driverNameElement.innerHTML = `
+          ${driverName}
+          <span class="ml-2 px-2 py-1 rounded-full text-xs font-medium ${statusConfig.badgeClass}">
+            ${statusConfig.badgeText}
+          </span>
+        `;
+      }
+    } catch (error) {
+      console.error("Error updating navigation status:", error);
+    }
+  }
 }
 
 // Initialize driver dashboard when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
   window.driverDashboard = new DriverDashboard();
+});
+
+// Cleanup when page is unloaded
+window.addEventListener("beforeunload", () => {
+  if (window.driverDashboard && window.driverDashboard.statusRefreshInterval) {
+    clearInterval(window.driverDashboard.statusRefreshInterval);
+  }
 });
 
 // Modal HTML (sekali saja di body)
@@ -846,7 +1285,7 @@ DriverDashboard.prototype.showOrderDetail = async function (orderId) {
     try {
       // Coba ambil data customer terlebih dahulu
       customerData = await api.getCustomerByUserId(order.userId);
-      console.log("Customer data from getCustomerByUserId:", customerData); // Debug log
+      // console.log(customerData);
     } catch (e) {
       console.warn(
         "Gagal mengambil data customer dari getCustomerByUserId:",
@@ -856,21 +1295,13 @@ DriverDashboard.prototype.showOrderDetail = async function (orderId) {
     try {
       // Fallback ke data user
       userData = await api.getUserById(order.userId);
-      console.log("User data from getUserById:", userData); // Debug log
     } catch (e) {
       console.warn("Gagal mengambil data user dari getUserById:", e);
     }
 
     // Ambil data customer dengan fallback yang lebih baik
     const customerName = userData?.name;
-    const customerPhone = customerData?.phone || userData?.phone || "N/A";
-
-    console.log(
-      "Final customer data - Name:",
-      customerName,
-      "Phone:",
-      customerPhone
-    ); // Debug log
+    const customerPhone = customerData?.phone|| userData?.phone ;
 
     let html = `
       <h2 class='text-lg font-bold mb-4 flex items-center gap-2'><i class="fas fa-info-circle text-blue-500"></i>Detail Order #${
@@ -898,7 +1329,7 @@ DriverDashboard.prototype.showOrderDetail = async function (orderId) {
         <div class='font-semibold text-gray-700 mt-2 flex items-center gap-2'><i class="fas fa-map-marker text-red-500"></i> Tujuan</div>
         <div class='ml-4 text-sm text-gray-700'>${order.destination}</div>
         <div class='ml-4 text-xs text-gray-500'>Lat: ${
-          order.destinationLat
+          order.destinationLng
         } | Lng: ${order.destinationLng}</div>
         <div class='mt-2'><span class='font-semibold text-gray-700'>Harga:</span> <span class='ml-2 text-blue-700 font-bold'>Rp ${
           order.price?.toLocaleString() || "0"

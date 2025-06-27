@@ -61,9 +61,17 @@ public class DriverController {
     }
 
     @GetMapping("/status")
-    public ResponseEntity<Map<String, String>> getDriverStatus() {
+    public ResponseEntity<Map<String, String>> getDriverStatus(@RequestParam Long userId) {
+        Optional<Driver> driver = driverRepository.findByUserId(userId);
         Map<String, String> status = new HashMap<>();
-        status.put("status", "available");
+        
+        if (driver.isPresent()) {
+            String driverStatus = driver.get().getStatus();
+            status.put("status", driverStatus);
+        } else {
+            status.put("status", "unavailable");
+        }
+        
         return ResponseEntity.ok(status);
     }
 
@@ -97,6 +105,21 @@ public class DriverController {
         return ResponseEntity.notFound().build();
     }
 
+    @PutMapping("/{id}/vehicle")
+    public ResponseEntity<Driver> updateDriverVehicle(@PathVariable Long id, @Valid @RequestBody Map<String, String> vehicleData) {
+        Optional<Driver> driver = driverRepository.findById(id);
+        if (driver.isPresent()) {
+            Driver existingDriver = driver.get();
+            existingDriver.setVehicleType(vehicleData.get("vehicleType"));
+            existingDriver.setVehicleBrand(vehicleData.get("vehicleBrand"));
+            existingDriver.setVehicleModel(vehicleData.get("vehicleModel"));
+            existingDriver.setPlateNumber(vehicleData.get("plateNumber"));
+            Driver updatedDriver = driverRepository.save(existingDriver);
+            return ResponseEntity.ok(updatedDriver);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
     @PutMapping("/status")
     public ResponseEntity<?> updateStatus(@RequestBody Map<String, Object> body) {
         Object userIdObj = body.get("userId");
@@ -109,6 +132,11 @@ public class DriverController {
         Long userId = Long.valueOf(userIdObj.toString());
         String newStatus = statusObj.toString();
 
+        // Validasi status yang valid
+        if (!isValidStatus(newStatus)) {
+            return ResponseEntity.badRequest().body("Status tidak valid. Status yang valid: available, unavailable, busy");
+        }
+
         Optional<Driver> driver = driverRepository.findByUserId(userId);
         if (driver.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -116,8 +144,13 @@ public class DriverController {
 
         Driver d = driver.get();
         d.setStatus(newStatus);
-        driverRepository.save(d);
+        Driver savedDriver = driverRepository.save(d);
+        
         return ResponseEntity.ok(Map.of("status", newStatus));
+    }
+
+    private boolean isValidStatus(String status) {
+        return status != null && (status.equals("available") || status.equals("unavailable") || status.equals("busy"));
     }
 
     // Endpoint untuk mendapatkan order dengan status waiting

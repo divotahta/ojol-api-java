@@ -195,10 +195,24 @@ public class OrderController {
                     .body(Map.of("message", "Gagal mengambil data driver", "error", e.getMessage()));
         }
 
-        if (driver == null || (!"available".equalsIgnoreCase(driver.getStatus())
-                && !"online".equalsIgnoreCase(driver.getStatus()))) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Driver sedang tidak available/busy!"));
+        if (driver == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Driver tidak ditemukan"));
         }
+
+        // Validasi status driver yang lebih ketat
+        String driverStatus = driver.getStatus();
+        if ("unavailable".equalsIgnoreCase(driverStatus)) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Driver sedang tidak tersedia. Ubah status menjadi 'Available' terlebih dahulu."));
+        }
+        
+        if ("busy".equalsIgnoreCase(driverStatus)) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Driver sedang dalam perjalanan. Selesaikan order yang sedang berlangsung terlebih dahulu."));
+        }
+        
+        if (!"available".equalsIgnoreCase(driverStatus) && !"online".equalsIgnoreCase(driverStatus)) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Driver sedang tidak available. Status saat ini: " + driverStatus));
+        }
+        
         // 3. Proses assign order
         Optional<Order> order = orderRepository.findById(id);
         if (order.isPresent()) {

@@ -631,7 +631,7 @@ class AdminDashboard {
             }
 
             // Tambahkan chart sederhana
-            this.createStatusChart(orders);
+            // this.createStatusChart(orders);
 
         } catch (error) {
             console.error('Error loading system statistics:', error);
@@ -639,53 +639,53 @@ class AdminDashboard {
         }
     }
 
-    createStatusChart(orders) {
-        // Hitung status order
-        const statusCounts = {
-            waiting: orders.filter(o => o.status === 'waiting').length,
-            in_progress: orders.filter(o => o.status === 'in_progress').length,
-            completed: orders.filter(o => o.status === 'completed').length,
-            cancelled: orders.filter(o => o.status === 'cancelled').length
-        };
+    // createStatusChart(orders) {
+    //     // Hitung status order
+    //     const statusCounts = {
+    //         waiting: orders.filter(o => o.status === 'waiting').length,
+    //         in_progress: orders.filter(o => o.status === 'in_progress').length,
+    //         completed: orders.filter(o => o.status === 'completed').length,
+    //         cancelled: orders.filter(o => o.status === 'cancelled').length
+    //     };
 
-        // Cari container untuk chart
-        let chartContainer = document.getElementById('status-chart');
-        if (!chartContainer) {
-            // Buat container jika belum ada
-            const statsSection = document.querySelector('.mt-8.bg-white.rounded-lg.shadow-lg.p-6');
-            if (statsSection) {
-                const chartSection = document.createElement('div');
-                chartSection.className = 'mt-6';
-                chartSection.innerHTML = `
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Status Pesanan</h3>
-                    <div id="status-chart" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
-                `;
-                statsSection.appendChild(chartSection);
-                chartContainer = document.getElementById('status-chart');
-            }
-        }
+    //     // Cari container untuk chart
+    //     let chartContainer = document.getElementById('status-chart');
+    //     if (!chartContainer) {
+    //         // Buat container jika belum ada
+    //         const statsSection = document.querySelector('.mt-8.bg-white.rounded-lg.shadow-lg.p-6');
+    //         if (statsSection) {
+    //             const chartSection = document.createElement('div');
+    //             chartSection.className = 'mt-6';
+    //             chartSection.innerHTML = `
+    //                 <h3 class="text-lg font-semibold text-gray-800 mb-4">Status Pesanan</h3>
+    //                 <div id="status-chart" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+    //             `;
+    //             statsSection.appendChild(chartSection);
+    //             chartContainer = document.getElementById('status-chart');
+    //         }
+    //     }
 
-        if (chartContainer) {
-            chartContainer.innerHTML = `
-                <div class="text-center p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
-                    <h4 class="font-medium text-yellow-800">Menunggu</h4>
-                    <p class="text-2xl font-bold text-yellow-600">${statusCounts.waiting}</p>
-                </div>
-                <div class="text-center p-4 bg-blue-50 rounded-lg border-l-4 border-blue-400">
-                    <h4 class="font-medium text-blue-800">Dalam Proses</h4>
-                    <p class="text-2xl font-bold text-blue-600">${statusCounts.in_progress}</p>
-                </div>
-                <div class="text-center p-4 bg-green-50 rounded-lg border-l-4 border-green-400">
-                    <h4 class="font-medium text-green-800">Selesai</h4>
-                    <p class="text-2xl font-bold text-green-600">${statusCounts.completed}</p>
-                </div>
-                <div class="text-center p-4 bg-red-50 rounded-lg border-l-4 border-red-400">
-                    <h4 class="font-medium text-red-800">Dibatalkan</h4>
-                    <p class="text-2xl font-bold text-red-600">${statusCounts.cancelled}</p>
-                </div>
-            `;
-        }
-    }
+    //     if (chartContainer) {
+    //         chartContainer.innerHTML = `
+    //             <div class="text-center p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
+    //                 <h4 class="font-medium text-yellow-800">Menunggu</h4>
+    //                 <p class="text-2xl font-bold text-yellow-600">${statusCounts.waiting}</p>
+    //             </div>
+    //             <div class="text-center p-4 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+    //                 <h4 class="font-medium text-blue-800">Dalam Proses</h4>
+    //                 <p class="text-2xl font-bold text-blue-600">${statusCounts.in_progress}</p>
+    //             </div>
+    //             <div class="text-center p-4 bg-green-50 rounded-lg border-l-4 border-green-400">
+    //                 <h4 class="font-medium text-green-800">Selesai</h4>
+    //                 <p class="text-2xl font-bold text-green-600">${statusCounts.completed}</p>
+    //             </div>
+    //             <div class="text-center p-4 bg-red-50 rounded-lg border-l-4 border-red-400">
+    //                 <h4 class="font-medium text-red-800">Dibatalkan</h4>
+    //                 <p class="text-2xl font-bold text-red-600">${statusCounts.cancelled}</p>
+    //             </div>
+    //         `;
+    //     }
+    // }
 
     // Management functions
     async createUser() {
