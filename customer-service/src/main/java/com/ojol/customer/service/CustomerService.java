@@ -4,6 +4,7 @@ import com.ojol.customer.model.Customer;
 import com.ojol.customer.repository.CustomerRepository;
 import com.ojol.customer.client.UserClient;
 import com.ojol.customer.dto.UserDto;
+import com.ojol.customer.dto.CustomerRequestDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -31,6 +32,16 @@ public class CustomerService {
     }
 
     public Customer createCustomer(Customer customer) {
+        return customerRepository.save(customer);
+    }
+
+    public Customer createCustomerFromDTO(CustomerRequestDTO customerDTO) {
+        Customer customer = new Customer();
+        customer.setUserId(customerDTO.getUserId());
+        customer.setPhone(customerDTO.getPhone());
+        customer.setAddress(customerDTO.getAddress());
+        customer.setGender(customerDTO.getGender());
+        customer.setDateOfBirth(customerDTO.getDateOfBirthAsLocalDate());
         return customerRepository.save(customer);
     }
 

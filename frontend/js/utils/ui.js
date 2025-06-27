@@ -230,21 +230,21 @@ class UI {
     getStatusBadge(status, type = 'order') {
         const statusConfig = {
             order: {
-                'PENDING': { color: 'yellow', text: 'Menunggu' },
-                'ACCEPTED': { color: 'blue', text: 'Diterima' },
-                'IN_PROGRESS': { color: 'purple', text: 'Dalam Proses' },
-                'COMPLETED': { color: 'green', text: 'Selesai' },
-                'CANCELLED': { color: 'red', text: 'Dibatalkan' }
+                'pending': { color: 'yellow', text: 'Menunggu' },
+                'accepted': { color: 'blue', text: 'Diterima' },
+                'in_progress': { color: 'purple', text: 'Dalam Proses' },
+                'completed': { color: 'green', text: 'Selesai' },
+                'cancelled': { color: 'red', text: 'Dibatalkan' }
             },
             driver: {
-                'ONLINE': { color: 'green', text: 'Online' },
-                'OFFLINE': { color: 'red', text: 'Offline' },
-                'BUSY': { color: 'yellow', text: 'Sibuk' }
+                'available': { color: 'green', text: 'Available' },
+                'unavailable': { color: 'red', text: 'Unavailable' },
+                'busy': { color: 'yellow', text: 'Sibuk' }
             },
             payment: {
-                'PENDING': { color: 'yellow', text: 'Menunggu' },
-                'COMPLETED': { color: 'green', text: 'Selesai' },
-                'FAILED': { color: 'red', text: 'Gagal' }
+                'pending': { color: 'yellow', text: 'Menunggu' },
+                'paid': { color: 'green', text: 'Selesai' },
+                'failed': { color: 'red', text: 'Gagal' }
             }
         };
 
@@ -259,9 +259,9 @@ class UI {
 
     getRoleBadge(role) {
         const roleConfig = {
-            'ADMIN': { color: 'red', text: 'Admin' },
-            'CUSTOMER': { color: 'blue', text: 'Customer' },
-            'DRIVER': { color: 'green', text: 'Driver' }
+            'admin': { color: 'red', text: 'Admin' },
+            'customer': { color: 'blue', text: 'Customer' },
+            'driver': { color: 'green', text: 'Driver' }
         };
 
         const config = roleConfig[role] || { color: 'gray', text: role };

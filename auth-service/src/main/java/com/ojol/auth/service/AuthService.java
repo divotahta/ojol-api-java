@@ -18,6 +18,18 @@ public class AuthService {
     @Autowired
     private JwtService jwtService;
 
+    public User register(User user) {
+        // Check if email already exists
+        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            throw new RuntimeException("Email sudah terdaftar");
+        }
+
+        // In production, encode password here
+        // user.setPassword(passwordEncoder.encode(user.getPassword()));
+        
+        return userRepository.save(user);
+    }
+
     public LoginResponse login(LoginRequest loginRequest) {
         Optional<User> userOptional = userRepository.findByEmail(loginRequest.getEmail());
         

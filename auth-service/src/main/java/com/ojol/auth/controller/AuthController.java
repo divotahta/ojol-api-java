@@ -2,6 +2,7 @@ package com.ojol.auth.controller;
 
 import com.ojol.auth.dto.LoginRequest;
 import com.ojol.auth.dto.LoginResponse;
+import com.ojol.auth.model.User;
 import com.ojol.auth.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +34,25 @@ public class AuthController {
             e.printStackTrace();
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("error", "Invalid email or password");
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@Valid @RequestBody User user) {
+        try {
+            User registeredUser = authService.register(user);
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Registrasi berhasil");
+            response.put("success", true);
+            response.put("data", registeredUser);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.err.println("Register error: " + e.getMessage());
+            e.printStackTrace();
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("success", false);
             return ResponseEntity.badRequest().body(errorResponse);
         }
     }

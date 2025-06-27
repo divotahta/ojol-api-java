@@ -19,9 +19,17 @@ class CustomerDashboard {
 
     const role = auth.getRole();
     if (role !== CONFIG.ROLES.CUSTOMER) {
-      ui.showError("Akses ditolak. Anda bukan customer.");
-      auth.logout();
-      window.location.href = "index.html";
+      // Redirect ke halaman yang sesuai dengan role, bukan logout
+      if (role === CONFIG.ROLES.ADMIN) {
+        window.location.href = "admin-dashboard.html";
+      } else if (role === CONFIG.ROLES.DRIVER) {
+        window.location.href = "driver-dashboard.html";
+      } else {
+        // Jika role tidak dikenal, baru logout
+        ui.showError("Role tidak valid.");
+        auth.logout();
+        window.location.href = "index.html";
+      }
       return;
     }
 
@@ -37,8 +45,7 @@ class CustomerDashboard {
     const logoutBtn = document.getElementById("logout-btn");
     if (logoutBtn) {
       logoutBtn.addEventListener("click", () => {
-        auth.logout();
-        window.location.href = "index.html";
+        this.showLogoutConfirmation();
       });
     }
 
@@ -152,14 +159,18 @@ class CustomerDashboard {
   async editProfile() {
     try {
       ui.showLoading();
-      const customerData = await api.getUserProfile();
+      const userData = await api.getUserProfile();
+      
+      // Ambil customer data berdasarkan user ID
+      const customerData = await api.getCustomerByUserId(userData.id);
 
       const html = `
         <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
           <i class="fas fa-user-edit text-red-500"></i>Edit Profile
         </h2>
         <form id="edit-profile-form" class="space-y-4">
-          <input type="hidden" id="edit-profile-id" value="${customerData.id}">
+          <input type="hidden" id="edit-profile-user-id" value="${userData.id}">
+          <input type="hidden" id="edit-profile-customer-id" value="${customerData.id}">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
@@ -222,15 +233,20 @@ class CustomerDashboard {
   async submitEditProfile() {
     try {
       ui.showLoading();
-      const profileId = document.getElementById("edit-profile-id").value;
+      const customerId = document.getElementById("edit-profile-customer-id").value;
+      const userId = document.getElementById("edit-profile-user-id").value;
+      
       const profileData = {
+        userId: userId,
         phone: document.getElementById("edit-profile-phone").value,
         address: document.getElementById("edit-profile-address").value,
         gender: document.getElementById("edit-profile-gender").value,
-        date_of_birth: document.getElementById("edit-profile-dob").value,
+        dateOfBirth: document.getElementById("edit-profile-dob").value, // Format: YYYY-MM-DD
       };
 
-      const result = await api.updateCustomerProfile(profileId, profileData);
+      console.log("Updating customer profile:", { customerId, profileData });
+
+      const result = await api.updateCustomerProfile(customerId, profileData);
       if (result) {
         ui.showToast("Profile berhasil diupdate!");
         this.hideModal();
@@ -240,7 +256,7 @@ class CustomerDashboard {
       }
     } catch (error) {
       console.error("Error updating customer profile:", error);
-      ui.showError("Gagal mengupdate profile");
+      ui.showError("Gagal mengupdate profile: " + error.message);
     } finally {
       ui.hideLoading();
     }
@@ -812,6 +828,34 @@ class CustomerDashboard {
     } finally {
       ui.hideLoading();
     }
+  }
+
+  showLogoutConfirmation() {
+    this.showModal(`
+      <div class="p-6 text-center">
+        <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <i class="fas fa-sign-out-alt text-red-600 text-2xl"></i>
+        </div>
+        <h3 class="text-lg font-bold text-gray-800 mb-2">Konfirmasi Logout</h3>
+        <p class="text-gray-600 mb-6">Apakah Anda yakin ingin keluar dari sistem?</p>
+        <div class="flex space-x-3">
+          <button onclick="customerDashboard.hideModal()" 
+                  class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors">
+            Batal
+          </button>
+          <button onclick="customerDashboard.confirmLogout()" 
+                  class="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors">
+            <i class="fas fa-sign-out-alt mr-2"></i>Logout
+          </button>
+        </div>
+      </div>
+    `);
+  }
+
+  confirmLogout() {
+    this.hideModal();
+    auth.logout();
+    window.location.href = "index.html";
   }
 }
 

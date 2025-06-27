@@ -22,6 +22,12 @@ spring:
             - Path=/api/auth/**
           filters:
             - StripPrefix=1
+        - id: register-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/register/**
+          filters:
+            - StripPrefix=1
         - id: user-service
           uri: lb://user-service
           predicates:
@@ -56,7 +62,8 @@ spring:
         add-to-simple-url-handler-mapping: true
         corsConfigurations:
           "[/**]":
-            allowedOrigins: "http://localhost:8000"
+            allowedOrigins: 
+              - "http://localhost:3000"
             allowedMethods:
               - GET
               - POST

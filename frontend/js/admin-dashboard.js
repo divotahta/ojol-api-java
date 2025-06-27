@@ -2,12 +2,20 @@
 class AdminDashboard {
     constructor() {
         this.init();
+        this.setupAutoRefresh();
     }
 
     init() {
         this.checkAuth();
         this.setupEventListeners();
         this.loadDashboard();
+    }
+
+    setupAutoRefresh() {
+        // Auto refresh statistik setiap 30 detik
+        setInterval(() => {
+            this.loadSystemStatistics();
+        }, 30000); // 30 detik
     }
 
     async checkAuth() {
@@ -18,9 +26,17 @@ class AdminDashboard {
 
         const role = auth.getRole();
         if (role !== CONFIG.ROLES.ADMIN) {
-            ui.showError('Akses ditolak. Anda bukan admin.');
-            auth.logout();
-            window.location.href = 'index.html';
+            // Redirect ke halaman yang sesuai dengan role, bukan logout
+            if (role === CONFIG.ROLES.CUSTOMER) {
+                window.location.href = 'customer-dashboard.html';
+            } else if (role === CONFIG.ROLES.DRIVER) {
+                window.location.href = 'driver-dashboard.html';
+            } else {
+                // Jika role tidak dikenal, baru logout
+                ui.showError('Role tidak valid.');
+                auth.logout();
+                window.location.href = 'index.html';
+            }
             return;
         }
 
@@ -36,10 +52,56 @@ class AdminDashboard {
         const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
-                auth.logout();
-                window.location.href = 'index.html';
+                this.showLogoutConfirmation();
             });
         }
+
+        // Refresh stats button
+        const refreshStatsBtn = document.getElementById('refresh-stats-btn');
+        if (refreshStatsBtn) {
+            refreshStatsBtn.addEventListener('click', async () => {
+                refreshStatsBtn.disabled = true;
+                refreshStatsBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
+                
+                try {
+                    await this.loadSystemStatistics();
+                    ui.showToast('Statistik berhasil diperbarui');
+                } catch (error) {
+                    ui.showError('Gagal memperbarui statistik');
+                } finally {
+                    refreshStatsBtn.disabled = false;
+                    refreshStatsBtn.innerHTML = '<i class="fas fa-sync-alt mr-2"></i>Refresh';
+                }
+            });
+        }
+    }
+
+    showLogoutConfirmation() {
+        this.showModal(`
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-sign-out-alt text-red-600 text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-800 mb-2">Konfirmasi Logout</h3>
+                <p class="text-gray-600 mb-6">Apakah Anda yakin ingin keluar dari sistem?</p>
+                <div class="flex space-x-3">
+                    <button onclick="adminDashboard.hideModal()" 
+                            class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors">
+                        Batal
+                    </button>
+                    <button onclick="adminDashboard.confirmLogout()" 
+                            class="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                    </button>
+                </div>
+            </div>
+        `);
+    }
+
+    confirmLogout() {
+        this.hideModal();
+        auth.logout();
+        window.location.href = 'index.html';
     }
 
     async loadDashboard() {
@@ -86,20 +148,35 @@ class AdminDashboard {
 
     async loadStatistics() {
         try {
-            const stats = await api.getSystemStatistics();
-            
+            let stats;
+            try {
+                stats = await api.getSystemStatistics();
+            } catch (e) {
+                // Jika endpoint statistik tidak ada, hitung manual
+                const [users, drivers, orders, payments] = await Promise.all([
+                    api.getAllUsers(),
+                    api.getAllDrivers(),
+                    api.getAllOrders(),
+                    api.getAllPayments()
+                ]);
+                stats = {
+                    totalUsers: users.length,
+                    totalDrivers: drivers.length,
+                    totalOrders: orders.length,
+                    totalPayments: payments.length
+                };
+            }
             const totalUsers = document.getElementById('total-users');
             const totalDrivers = document.getElementById('total-drivers');
             const totalOrders = document.getElementById('total-orders');
             const totalPayments = document.getElementById('total-payments');
-            
             if (totalUsers) totalUsers.textContent = stats.totalUsers || 0;
             if (totalDrivers) totalDrivers.textContent = stats.totalDrivers || 0;
             if (totalOrders) totalOrders.textContent = stats.totalOrders || 0;
             if (totalPayments) totalPayments.textContent = stats.totalPayments || 0;
-            
         } catch (error) {
             console.error('Error loading statistics:', error);
+            ui.showError('Gagal memuat statistik');
         }
     }
 
@@ -191,11 +268,11 @@ class AdminDashboard {
                                             <div class="text-xs text-gray-500 space-y-1">
                                                 <div class="flex items-center space-x-1">
                                                     <i class="fas fa-motorcycle text-green-500"></i>
-                                                    <span>${driver.vehicle_type || 'N/A'} - ${driver.vehicle_brand || 'N/A'} ${driver.vehicle_model || 'N/A'}</span>
+                                                    <span>${driver.vehicleType || 'N/A'} - ${driver.vehicleBrand || 'N/A'} ${driver.vehicleModel || 'N/A'}</span>
                                                 </div>
                                                 <div class="flex items-center space-x-1">
                                                     <i class="fas fa-id-card text-blue-500"></i>
-                                                    <span>${driver.plate_number || 'N/A'}</span>
+                                                    <span>${driver.plateNumber || 'N/A'}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -234,11 +311,11 @@ class AdminDashboard {
                             <div class="flex space-x-2">
                                 <select id="order-filter" class="border border-gray-300 rounded-lg px-3 py-1 text-sm">
                                     <option value="">Semua Status</option>
-                                    <option value="PENDING">Menunggu</option>
-                                    <option value="ACCEPTED">Diterima</option>
-                                    <option value="IN_PROGRESS">Dalam Proses</option>
-                                    <option value="COMPLETED">Selesai</option>
-                                    <option value="CANCELLED">Dibatalkan</option>
+                                    <option value="pending">Menunggu</option>
+                                    <option value="accepted">Diterima</option>
+                                    <option value="in_progress">Dalam Proses</option>
+                                    <option value="completed">Selesai</option>
+                                    <option value="cancelled">Dibatalkan</option>
                                 </select>
                             </div>
                         </div>
@@ -311,9 +388,9 @@ class AdminDashboard {
                             <div class="flex space-x-2">
                                 <select id="payment-filter" class="border border-gray-300 rounded-lg px-3 py-1 text-sm">
                                     <option value="">Semua Status</option>
-                                    <option value="PENDING">Menunggu</option>
-                                    <option value="COMPLETED">Selesai</option>
-                                    <option value="FAILED">Gagal</option>
+                                    <option value="pending">Menunggu</option>
+                                    <option value="paid">Selesai</option>
+                                    <option value="failed">Gagal</option>
                                 </select>
                             </div>
                         </div>
@@ -366,420 +443,504 @@ class AdminDashboard {
 
     async loadSystemStatistics() {
         try {
-            const stats = await api.getSystemStatistics();
-            
-            const todayOrders = document.getElementById('today-orders');
-            const todayRevenue = document.getElementById('today-revenue');
-            const onlineDrivers = document.getElementById('online-drivers');
-            
-            if (todayOrders) todayOrders.textContent = stats.todayOrders || 0;
-            if (todayRevenue) todayRevenue.textContent = `Rp ${(stats.todayRevenue || 0).toLocaleString()}`;
-            if (onlineDrivers) onlineDrivers.textContent = stats.onlineDrivers || 0;
-            
+            // Ambil semua data yang diperlukan
+            const [orders, payments, drivers] = await Promise.all([
+                api.getAllOrders(),
+                api.getAllPayments(),
+                api.getAllDrivers()
+            ]);
+
+            // Hitung statistik hari ini
+            const today = new Date();
+            const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+            // Pesanan hari ini
+            const todayOrders = orders.filter(order => {
+                const orderDate = new Date(order.createdAt);
+                return orderDate >= todayStart && orderDate < todayEnd;
+            });
+
+            // Pendapatan hari ini (dari payment yang completed hari ini)
+            const todayPayments = payments.filter(payment => {
+                if (payment.status !== 'paid') return false;
+                const paymentDate = new Date(payment.paidAt || payment.updatedAt);
+                return paymentDate >= todayStart && paymentDate < todayEnd;
+            });
+            const todayRevenue = todayPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+
+            // Driver online (available)
+            const onlineDrivers = drivers.filter(driver => driver.status === 'available');
+
+            // Statistik bulan ini
+            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+            const monthOrders = orders.filter(order => {
+                const orderDate = new Date(order.createdAt);
+                return orderDate >= monthStart;
+            });
+
+            // Pesanan berdasarkan status
+            const pendingOrders = orders.filter(order => order.status === 'waiting' || order.status === 'pending');
+            const completedToday = todayOrders.filter(order => order.status === 'completed');
+            const cancelledToday = todayOrders.filter(order => order.status === 'cancelled');
+
+            // Update UI
+            const todayOrdersEl = document.getElementById('today-orders');
+            const todayRevenueEl = document.getElementById('today-revenue');
+            const onlineDriversEl = document.getElementById('online-drivers');
+
+            if (todayOrdersEl) todayOrdersEl.textContent = todayOrders.length;
+            if (todayRevenueEl) todayRevenueEl.textContent = `Rp ${todayRevenue.toLocaleString()}`;
+            if (onlineDriversEl) onlineDriversEl.textContent = onlineDrivers.length;
+
+            // Tambahkan statistik tambahan
+            const statsContainer = document.querySelector('.grid.grid-cols-1.md\\:grid-cols-3');
+            if (statsContainer) {
+                // Tambahkan card statistik tambahan
+                const additionalStats = `
+                    <div class="text-center p-4 bg-gray-50 rounded-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Pesanan Bulan Ini</h3>
+                        <p class="text-3xl font-bold text-purple-600">${monthOrders.length}</p>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 rounded-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Pesanan Pending</h3>
+                        <p class="text-3xl font-bold text-orange-600">${pendingOrders.length}</p>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 rounded-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Selesai Hari Ini</h3>
+                        <p class="text-3xl font-bold text-green-600">${completedToday.length}</p>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 rounded-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Dibatalkan Hari Ini</h3>
+                        <p class="text-3xl font-bold text-red-600">${cancelledToday.length}</p>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 rounded-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Total Driver</h3>
+                        <p class="text-3xl font-bold text-indigo-600">${drivers.length}</p>
+                    </div>
+                    <div class="text-center p-4 bg-gray-50 rounded-lg">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">Total Pesanan</h3>
+                        <p class="text-3xl font-bold text-blue-600">${orders.length}</p>
+                    </div>
+                `;
+                
+                // Ganti grid menjadi 6 kolom untuk statistik tambahan
+                statsContainer.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4';
+                statsContainer.innerHTML += additionalStats;
+            }
+
+            // Tambahkan chart sederhana
+            this.createStatusChart(orders);
+
         } catch (error) {
             console.error('Error loading system statistics:', error);
+            ui.showError('Gagal memuat statistik sistem');
+        }
+    }
+
+    createStatusChart(orders) {
+        // Hitung status order
+        const statusCounts = {
+            waiting: orders.filter(o => o.status === 'waiting').length,
+            in_progress: orders.filter(o => o.status === 'in_progress').length,
+            completed: orders.filter(o => o.status === 'completed').length,
+            cancelled: orders.filter(o => o.status === 'cancelled').length
+        };
+
+        // Cari container untuk chart
+        let chartContainer = document.getElementById('status-chart');
+        if (!chartContainer) {
+            // Buat container jika belum ada
+            const statsSection = document.querySelector('.mt-8.bg-white.rounded-lg.shadow-lg.p-6');
+            if (statsSection) {
+                const chartSection = document.createElement('div');
+                chartSection.className = 'mt-6';
+                chartSection.innerHTML = `
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Status Pesanan</h3>
+                    <div id="status-chart" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+                `;
+                statsSection.appendChild(chartSection);
+                chartContainer = document.getElementById('status-chart');
+            }
+        }
+
+        if (chartContainer) {
+            chartContainer.innerHTML = `
+                <div class="text-center p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
+                    <h4 class="font-medium text-yellow-800">Menunggu</h4>
+                    <p class="text-2xl font-bold text-yellow-600">${statusCounts.waiting}</p>
+                </div>
+                <div class="text-center p-4 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                    <h4 class="font-medium text-blue-800">Dalam Proses</h4>
+                    <p class="text-2xl font-bold text-blue-600">${statusCounts.in_progress}</p>
+                </div>
+                <div class="text-center p-4 bg-green-50 rounded-lg border-l-4 border-green-400">
+                    <h4 class="font-medium text-green-800">Selesai</h4>
+                    <p class="text-2xl font-bold text-green-600">${statusCounts.completed}</p>
+                </div>
+                <div class="text-center p-4 bg-red-50 rounded-lg border-l-4 border-red-400">
+                    <h4 class="font-medium text-red-800">Dibatalkan</h4>
+                    <p class="text-2xl font-bold text-red-600">${statusCounts.cancelled}</p>
+                </div>
+            `;
         }
     }
 
     // Management functions
     async createUser() {
-        const html = `
-            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
-                <i class="fas fa-user-plus text-blue-500"></i>Tambah User Baru
-            </h2>
-            <form id="create-user-form" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Nama</label>
-                        <input type="text" id="user-name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                        <input type="email" id="user-email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                        <input type="password" id="user-password" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
-                        <select id="user-role" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                            <option value="customer">Customer</option>
-                            <option value="driver">Driver</option>
-                            <option value="admin">Admin</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="flex justify-end space-x-3 pt-4">
-                    <button type="button" onclick="adminDashboard.hideModal()" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
-                        Batal
-                    </button>
-                    <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-                        <i class="fas fa-save mr-1"></i>Simpan
-                    </button>
-                </div>
-            </form>
-        `;
-        
-        this.showModal(html);
-        
-        // Add form submit handler
-        document.getElementById('create-user-form').addEventListener('submit', async (e) => {
+        this.showModal(`
+            <div class="p-4">
+                <h3 class="text-lg font-bold mb-4">Tambah User</h3>
+                <form id="create-user-form" class="space-y-4">
+                    <input type="text" id="user-name" class="w-full border rounded px-3 py-2" placeholder="Nama" required />
+                    <input type="email" id="user-email" class="w-full border rounded px-3 py-2" placeholder="Email" required />
+                    <input type="password" id="user-password" class="w-full border rounded px-3 py-2" placeholder="Password (min 6 karakter)" required minlength="6" />
+                    <select id="user-role" class="w-full border rounded px-3 py-2" required>
+                        <option value="">Pilih Role</option>
+                        <option value="admin">Admin</option>
+                        <option value="customer">Customer</option>
+                        <option value="driver">Driver</option>
+                    </select>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded">Simpan</button>
+                </form>
+            </div>
+        `);
+        document.getElementById('create-user-form').onsubmit = (e) => {
             e.preventDefault();
-            await this.submitCreateUser();
-        });
+            this.submitCreateUser();
+        };
     }
 
     async submitCreateUser() {
         try {
-            ui.showLoading();
-            const userData = {
-                name: document.getElementById('user-name').value,
-                email: document.getElementById('user-email').value,
-                password: document.getElementById('user-password').value,
-                role: document.getElementById('user-role').value
-            };
-
-            const result = await api.createUser(userData);
-            if (result && result.success) {
-                ui.showToast('User berhasil dibuat!');
-                this.hideModal();
-                await this.loadDashboard();
-            } else {
-                ui.showError('Gagal membuat user');
+            const name = document.getElementById('user-name').value.trim();
+            const email = document.getElementById('user-email').value.trim();
+            const password = document.getElementById('user-password').value;
+            const role = document.getElementById('user-role').value;
+            if (!name || !email || !password || !role) {
+                ui.showError('Semua field wajib diisi!');
+                return;
             }
-        } catch (error) {
-            console.error('Error creating user:', error);
-            ui.showError('Gagal membuat user');
-        } finally {
-            ui.hideLoading();
+            if (password.length < 6) {
+                ui.showError('Password minimal 6 karakter!');
+                return;
+            }
+            await api.createUser({ name, email, password, role });
+            ui.showToast('User berhasil ditambahkan');
+            this.hideModal();
+            await this.loadUserManagement();
+            await this.loadStatistics();
+        } catch (err) {
+            ui.showError('Gagal menambah user: ' + (err.responseData?.message || err.message));
         }
     }
 
     async editUser(userId) {
         try {
-            ui.showLoading();
             const user = await api.getUserById(userId);
-            
-            const html = `
-                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
-                    <i class="fas fa-user-edit text-blue-500"></i>Edit User
-                </h2>
-                <form id="edit-user-form" class="space-y-4">
-                    <input type="hidden" id="edit-user-id" value="${user.id}">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Nama</label>
-                            <input type="text" id="edit-user-name" value="${user.name || ''}" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                            <input type="email" id="edit-user-email" value="${user.email || ''}" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Password Baru (kosongkan jika tidak ingin mengubah)</label>
-                            <input type="password" id="edit-user-password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
-                            <select id="edit-user-role" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                                <option value="customer" ${user.role === 'customer' ? 'selected' : ''}>Customer</option>
-                                <option value="driver" ${user.role === 'driver' ? 'selected' : ''}>Driver</option>
-                                <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="flex justify-end space-x-3 pt-4">
-                        <button type="button" onclick="adminDashboard.hideModal()" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
-                            Batal
-                        </button>
-                        <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-                            <i class="fas fa-save mr-1"></i>Update
-                        </button>
-                    </div>
-                </form>
-            `;
-            
-            this.showModal(html);
-            
-            // Add form submit handler
-            document.getElementById('edit-user-form').addEventListener('submit', async (e) => {
+            this.showModal(`
+                <div class="p-4">
+                    <h3 class="text-lg font-bold mb-4">Edit User</h3>
+                    <form id="edit-user-form" class="space-y-4">
+                        <input type="text" id="edit-user-name" class="w-full border rounded px-3 py-2" value="${user.name}" required />
+                        <input type="email" id="edit-user-email" class="w-full border rounded px-3 py-2" value="${user.email}" required />
+                        <input type="password" id="edit-user-password" class="w-full border rounded px-3 py-2" placeholder="Password baru (opsional)" minlength="6" />
+                        <select id="edit-user-role" class="w-full border rounded px-3 py-2" required>
+                            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+                            <option value="customer" ${user.role === 'customer' ? 'selected' : ''}>Customer</option>
+                            <option value="driver" ${user.role === 'driver' ? 'selected' : ''}>Driver</option>
+                        </select>
+                        <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded">Simpan</button>
+                    </form>
+                </div>
+            `);
+            document.getElementById('edit-user-form').onsubmit = (e) => {
                 e.preventDefault();
-                await this.submitEditUser();
-            });
-        } catch (error) {
-            console.error('Error loading user for edit:', error);
+                this.submitEditUser(userId);
+            };
+        } catch (err) {
             ui.showError('Gagal memuat data user');
-        } finally {
-            ui.hideLoading();
         }
     }
 
-    async submitEditUser() {
+    async submitEditUser(userId) {
         try {
-            ui.showLoading();
-            const userId = document.getElementById('edit-user-id').value;
-            const userData = {
-                name: document.getElementById('edit-user-name').value,
-                email: document.getElementById('edit-user-email').value,
-                role: document.getElementById('edit-user-role').value
-            };
-
-            // Hanya kirim password jika diisi
+            const name = document.getElementById('edit-user-name').value.trim();
+            const email = document.getElementById('edit-user-email').value.trim();
             const password = document.getElementById('edit-user-password').value;
-            if (password) {
-                userData.password = password;
+            const role = document.getElementById('edit-user-role').value;
+            if (!name || !email || !role) {
+                ui.showError('Semua field wajib diisi!');
+                return;
             }
-
-            const result = await api.updateUser(userId, userData);
-            if (result && result.success) {
-                ui.showToast('User berhasil diupdate!');
-                this.hideModal();
-                await this.loadDashboard();
-            } else {
-                ui.showError('Gagal mengupdate user');
+            const data = { name, email, role };
+            if (password && password.length > 0) {
+                if (password.length < 6) {
+                    ui.showError('Password minimal 6 karakter!');
+                    return;
+                }
+                data.password = password;
             }
-        } catch (error) {
-            console.error('Error updating user:', error);
-            ui.showError('Gagal mengupdate user');
-        } finally {
-            ui.hideLoading();
+            await api.updateUser(userId, data);
+            ui.showToast('User berhasil diupdate');
+            this.hideModal();
+            await this.loadUserManagement();
+            await this.loadStatistics();
+        } catch (err) {
+            ui.showError('Gagal update user: ' + (err.responseData?.message || err.message));
         }
     }
 
     async deleteUser(userId) {
-        if (confirm('Apakah Anda yakin ingin menghapus user ini?')) {
-            try {
-                ui.showLoading();
-                const result = await api.deleteUser(userId);
-                if (result && result.success) {
-                    ui.showToast('User berhasil dihapus!');
-                    await this.loadDashboard();
-                } else {
-                    ui.showError('Gagal menghapus user');
-                }
-            } catch (error) {
-                console.error('Error deleting user:', error);
-                ui.showError('Gagal menghapus user');
-            } finally {
-                ui.hideLoading();
-            }
+        if (!confirm('Yakin ingin menghapus user ini?')) return;
+        try {
+            await api.deleteUser(userId);
+            ui.showToast('User berhasil dihapus');
+            await this.loadUserManagement();
+            await this.loadStatistics();
+        } catch (err) {
+            ui.showError('Gagal hapus user: ' + (err.responseData?.message || err.message));
         }
     }
 
     async createDriver() {
-        const html = `
-            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
-                <i class="fas fa-motorcycle text-green-500"></i>Tambah Driver Baru
-            </h2>
-            <form id="create-driver-form" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Nama</label>
-                        <input type="text" id="driver-name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                        <input type="text" id="driver-phone" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                        <select id="driver-status" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                            <option value="available">Available</option>
-                            <option value="busy">Busy</option>
-                            <option value="offline">Offline</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Vehicle Type</label>
-                        <select id="driver-vehicle-type" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                            <option value="motorcycle">Motorcycle</option>
-                            <option value="car">Car</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Vehicle Brand</label>
-                        <input type="text" id="driver-vehicle-brand" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Vehicle Model</label>
-                        <input type="text" id="driver-vehicle-model" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Plate Number</label>
-                        <input type="text" id="driver-plate-number" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                    </div>
+        try {
+            // Ambil semua user dengan role driver
+            const users = await api.getAllUsers();
+            const driverUsers = users.filter(user => user.role === 'driver');
+            
+            // Ambil semua driver yang sudah ada untuk validasi
+            const existingDrivers = await api.getAllDrivers();
+            const existingUserIds = existingDrivers.map(driver => driver.userId);
+            
+            // Filter user driver yang belum memiliki data driver
+            const availableDriverUsers = driverUsers.filter(user => !existingUserIds.includes(user.id));
+            
+            if (availableDriverUsers.length === 0) {
+                ui.showError('Tidak ada user driver yang tersedia untuk ditambahkan sebagai driver');
+                return;
+            }
+            
+            this.showModal(`
+                <div class="p-4">
+                    <h3 class="text-lg font-bold mb-4">Tambah Driver</h3>
+                    <form id="create-driver-form" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Pilih User Driver</label>
+                            <select id="driver-user-id" class="w-full border rounded px-3 py-2" required>
+                                <option value="">Pilih User Driver</option>
+                                ${availableDriverUsers.map(user => `
+                                    <option value="${user.id}">${user.name} (${user.email})</option>
+                                `).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap</label>
+                            <input type="text" id="driver-name" class="w-full border rounded px-3 py-2" placeholder="Nama lengkap driver" required />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nomor Telepon</label>
+                            <input type="tel" id="driver-phone" class="w-full border rounded px-3 py-2" placeholder="08123456789" required />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Jenis Kendaraan</label>
+                            <select id="driver-vehicle-type" class="w-full border rounded px-3 py-2" required>
+                                <option value="">Pilih Jenis Kendaraan</option>
+                                <option value="motor">Motor</option>
+                                <option value="mobil">Mobil</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Merek Kendaraan</label>
+                            <input type="text" id="driver-vehicle-brand" class="w-full border rounded px-3 py-2" placeholder="Honda, Yamaha, dll" required />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Model Kendaraan</label>
+                            <input type="text" id="driver-vehicle-model" class="w-full border rounded px-3 py-2" placeholder="Vario, NMAX, dll" required />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nomor Plat</label>
+                            <input type="text" id="driver-plate-number" class="w-full border rounded px-3 py-2" placeholder="B 1234 ABC" required />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                            <select id="driver-status" class="w-full border rounded px-3 py-2" required>
+                                <option value="">Pilih Status</option>
+                                <option value="available">Available</option>
+                                <option value="unavailable">Unavailable</option>
+                                <option value="busy">Busy</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="w-full bg-green-600 text-white py-2 rounded">Simpan Driver</button>
+                    </form>
                 </div>
-                <div class="flex justify-end space-x-3 pt-4">
-                    <button type="button" onclick="adminDashboard.hideModal()" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
-                        Batal
-                    </button>
-                    <button type="submit" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
-                        <i class="fas fa-save mr-1"></i>Simpan
-                    </button>
-                </div>
-            </form>
-        `;
-        
-        this.showModal(html);
-        
-        // Add form submit handler
-        document.getElementById('create-driver-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await this.submitCreateDriver();
-        });
+            `);
+            
+            document.getElementById('create-driver-form').onsubmit = (e) => {
+                e.preventDefault();
+                this.submitCreateDriver();
+            };
+            
+        } catch (error) {
+            console.error('Error loading driver users:', error);
+            ui.showError('Gagal memuat data user driver');
+        }
     }
 
     async submitCreateDriver() {
         try {
-            ui.showLoading();
-            const driverData = {
-                name: document.getElementById('driver-name').value,
-                phone: document.getElementById('driver-phone').value,
-                status: document.getElementById('driver-status').value,
-                vehicle_type: document.getElementById('driver-vehicle-type').value,
-                vehicle_brand: document.getElementById('driver-vehicle-brand').value,
-                vehicle_model: document.getElementById('driver-vehicle-model').value,
-                plate_number: document.getElementById('driver-plate-number').value
-            };
-
-            const result = await api.createDriver(driverData);
-            if (result && result.success) {
-                ui.showToast('Driver berhasil dibuat!');
-                this.hideModal();
-                await this.loadDashboard();
-            } else {
-                ui.showError('Gagal membuat driver');
+            const userId = document.getElementById('driver-user-id').value;
+            const name = document.getElementById('driver-name').value.trim();
+            const phone = document.getElementById('driver-phone').value.trim();
+            const vehicleType = document.getElementById('driver-vehicle-type').value;
+            const vehicleBrand = document.getElementById('driver-vehicle-brand').value.trim();
+            const vehicleModel = document.getElementById('driver-vehicle-model').value.trim();
+            const plateNumber = document.getElementById('driver-plate-number').value.trim();
+            const status = document.getElementById('driver-status').value;
+            
+            // Validasi form
+            if (!userId || !name || !phone || !vehicleType || !vehicleBrand || !vehicleModel || !plateNumber || !status) {
+                ui.showError('Semua field wajib diisi!');
+                return;
             }
-        } catch (error) {
-            console.error('Error creating driver:', error);
-            ui.showError('Gagal membuat driver');
-        } finally {
-            ui.hideLoading();
+            
+            // Validasi format nomor telepon
+            if (!/^[0-9]{10,13}$/.test(phone.replace(/\s/g, ''))) {
+                ui.showError('Format nomor telepon tidak valid!');
+                return;
+            }
+            
+            const driverData = {
+                userId: parseInt(userId),
+                name,
+                phone,
+                vehicleType,
+                vehicleBrand,
+                vehicleModel,
+                plateNumber,
+                status
+            };
+            
+            await api.createDriver(driverData);
+            ui.showToast('Driver berhasil ditambahkan');
+            this.hideModal();
+            await this.loadDriverManagement();
+            await this.loadStatistics();
+            
+        } catch (err) {
+            ui.showError('Gagal menambah driver: ' + (err.responseData?.message || err.message));
         }
     }
 
     async editDriver(driverId) {
         try {
-            ui.showLoading();
             const driver = await api.getDriverById(driverId);
-            
-            const html = `
-                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
-                    <i class="fas fa-motorcycle text-green-500"></i>Edit Driver
-                </h2>
-                <form id="edit-driver-form" class="space-y-4">
-                    <input type="hidden" id="edit-driver-id" value="${driver.id}">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            this.showModal(`
+                <div class="p-4">
+                    <h3 class="text-lg font-bold mb-4">Edit Driver</h3>
+                    <form id="edit-driver-form" class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Nama</label>
-                            <input type="text" id="edit-driver-name" value="${driver.name || ''}" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap</label>
+                            <input type="text" id="edit-driver-name" class="w-full border rounded px-3 py-2" value="${driver.name || ''}" required />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                            <input type="text" id="edit-driver-phone" value="${driver.phone || ''}" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nomor Telepon</label>
+                            <input type="tel" id="edit-driver-phone" class="w-full border rounded px-3 py-2" value="${driver.phone || ''}" required />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Jenis Kendaraan</label>
+                            <select id="edit-driver-vehicle-type" class="w-full border rounded px-3 py-2" required>
+                                <option value="motor" ${driver.vehicleType === 'motor' ? 'selected' : ''}>Motor</option>
+                                <option value="mobil" ${driver.vehicleType === 'mobil' ? 'selected' : ''}>Mobil</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Merek Kendaraan</label>
+                            <input type="text" id="edit-driver-vehicle-brand" class="w-full border rounded px-3 py-2" value="${driver.vehicleBrand || ''}" required />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Model Kendaraan</label>
+                            <input type="text" id="edit-driver-vehicle-model" class="w-full border rounded px-3 py-2" value="${driver.vehicleModel || ''}" required />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Nomor Plat</label>
+                            <input type="text" id="edit-driver-plate-number" class="w-full border rounded px-3 py-2" value="${driver.plateNumber || ''}" required />
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                            <select id="edit-driver-status" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                            <select id="edit-driver-status" class="w-full border rounded px-3 py-2" required>
                                 <option value="available" ${driver.status === 'available' ? 'selected' : ''}>Available</option>
+                                <option value="unavailable" ${driver.status === 'unavailable' ? 'selected' : ''}>Unavailable</option>
                                 <option value="busy" ${driver.status === 'busy' ? 'selected' : ''}>Busy</option>
-                                <option value="offline" ${driver.status === 'offline' ? 'selected' : ''}>Offline</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Vehicle Type</label>
-                            <select id="edit-driver-vehicle-type" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                                <option value="motorcycle" ${driver.vehicle_type === 'motorcycle' ? 'selected' : ''}>Motorcycle</option>
-                                <option value="car" ${driver.vehicle_type === 'car' ? 'selected' : ''}>Car</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Vehicle Brand</label>
-                            <input type="text" id="edit-driver-vehicle-brand" value="${driver.vehicle_brand || ''}" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Vehicle Model</label>
-                            <input type="text" id="edit-driver-vehicle-model" value="${driver.vehicle_model || ''}" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Plate Number</label>
-                            <input type="text" id="edit-driver-plate-number" value="${driver.plate_number || ''}" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                        </div>
-                    </div>
-                    <div class="flex justify-end space-x-3 pt-4">
-                        <button type="button" onclick="adminDashboard.hideModal()" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
-                            Batal
-                        </button>
-                        <button type="submit" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
-                            <i class="fas fa-save mr-1"></i>Update
-                        </button>
-                    </div>
-                </form>
-            `;
+                        <button type="submit" class="w-full bg-green-600 text-white py-2 rounded">Update Driver</button>
+                    </form>
+                </div>
+            `);
             
-            this.showModal(html);
-            
-            // Add form submit handler
-            document.getElementById('edit-driver-form').addEventListener('submit', async (e) => {
+            document.getElementById('edit-driver-form').onsubmit = (e) => {
                 e.preventDefault();
-                await this.submitEditDriver();
-            });
-        } catch (error) {
-            console.error('Error loading driver for edit:', error);
+                this.submitEditDriver(driverId);
+            };
+            
+        } catch (err) {
             ui.showError('Gagal memuat data driver');
-        } finally {
-            ui.hideLoading();
         }
     }
 
-    async submitEditDriver() {
+    async submitEditDriver(driverId) {
         try {
-            ui.showLoading();
-            const driverId = document.getElementById('edit-driver-id').value;
-            const driverData = {
-                name: document.getElementById('edit-driver-name').value,
-                phone: document.getElementById('edit-driver-phone').value,
-                status: document.getElementById('edit-driver-status').value,
-                vehicle_type: document.getElementById('edit-driver-vehicle-type').value,
-                vehicle_brand: document.getElementById('edit-driver-vehicle-brand').value,
-                vehicle_model: document.getElementById('edit-driver-vehicle-model').value,
-                plate_number: document.getElementById('edit-driver-plate-number').value
-            };
-
-            const result = await api.updateDriver(driverId, driverData);
-            if (result && result.success) {
-                ui.showToast('Driver berhasil diupdate!');
-                this.hideModal();
-                await this.loadDashboard();
-            } else {
-                ui.showError('Gagal mengupdate driver');
+            const name = document.getElementById('edit-driver-name').value.trim();
+            const phone = document.getElementById('edit-driver-phone').value.trim();
+            const vehicleType = document.getElementById('edit-driver-vehicle-type').value;
+            const vehicleBrand = document.getElementById('edit-driver-vehicle-brand').value.trim();
+            const vehicleModel = document.getElementById('edit-driver-vehicle-model').value.trim();
+            const plateNumber = document.getElementById('edit-driver-plate-number').value.trim();
+            const status = document.getElementById('edit-driver-status').value;
+            
+            // Validasi form
+            if (!name || !phone || !vehicleType || !vehicleBrand || !vehicleModel || !plateNumber || !status) {
+                ui.showError('Semua field wajib diisi!');
+                return;
             }
-        } catch (error) {
-            console.error('Error updating driver:', error);
-            ui.showError('Gagal mengupdate driver');
-        } finally {
-            ui.hideLoading();
+            
+            // Validasi format nomor telepon
+            if (!/^[0-9]{10,13}$/.test(phone.replace(/\s/g, ''))) {
+                ui.showError('Format nomor telepon tidak valid!');
+                return;
+            }
+            
+            const driverData = {
+                name,
+                phone,
+                vehicleType,
+                vehicleBrand,
+                vehicleModel,
+                plateNumber,
+                status
+            };
+            
+            await api.updateDriver(driverId, driverData);
+            ui.showToast('Driver berhasil diupdate');
+            this.hideModal();
+            await this.loadDriverManagement();
+            await this.loadStatistics();
+            
+        } catch (err) {
+            ui.showError('Gagal update driver: ' + (err.responseData?.message || err.message));
         }
     }
 
     async deleteDriver(driverId) {
-        if (confirm('Apakah Anda yakin ingin menghapus driver ini?')) {
-            try {
-                ui.showLoading();
-                const result = await api.deleteDriver(driverId);
-                if (result && result.success) {
-                    ui.showToast('Driver berhasil dihapus!');
-                    await this.loadDashboard();
-                } else {
-                    ui.showError('Gagal menghapus driver');
-                }
-            } catch (error) {
-                console.error('Error deleting driver:', error);
-                ui.showError('Gagal menghapus driver');
-            } finally {
-                ui.hideLoading();
-            }
+        if (!confirm('Yakin ingin menghapus driver ini?')) return;
+        try {
+            await api.deleteDriver(driverId);
+            ui.showToast('Driver berhasil dihapus');
+            await this.loadDriverManagement();
+            await this.loadStatistics();
+        } catch (err) {
+            ui.showError('Gagal hapus driver: ' + (err.responseData?.message || err.message));
         }
     }
 
@@ -1077,27 +1238,27 @@ class AdminDashboard {
 
     getStatusColor(status) {
         const colors = {
-            'ONLINE': 'bg-green-100 text-green-800',
-            'OFFLINE': 'bg-red-100 text-red-800',
-            'BUSY': 'bg-yellow-100 text-yellow-800'
+            'available': 'bg-green-100 text-green-800',
+            'unavailable': 'bg-red-100 text-red-800',
+            'busy': 'bg-yellow-100 text-yellow-800'
         };
         return colors[status] || 'bg-gray-100 text-gray-800';
     }
 
     getStatusText(status) {
         const texts = {
-            'ONLINE': 'Online',
-            'OFFLINE': 'Offline',
-            'BUSY': 'Sibuk'
+            'available': 'Available',
+            'unavailable': 'Unavailable',
+            'busy': 'Sibuk'
         };
         return texts[status] || status;
     }
 
     getPaymentStatusColor(status) {
         const colors = {
-            'PENDING': 'bg-yellow-100 text-yellow-800',
-            'COMPLETED': 'bg-green-100 text-green-800',
-            'FAILED': 'bg-red-100 text-red-800'
+            'pending': 'bg-yellow-100 text-yellow-800',
+            'paid': 'bg-green-100 text-green-800',
+            'failed': 'bg-red-100 text-red-800'
         };
         return colors[status] || 'bg-gray-100 text-gray-800';
     }

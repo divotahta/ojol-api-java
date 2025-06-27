@@ -58,8 +58,8 @@ const CONFIG = {
     
     // Driver Status
     DRIVER_STATUS: {
-        ONLINE: 'online',
-        OFFLINE: 'offline',
+        ONLINE: 'available',
+        OFFLINE: 'unavailable',
         BUSY: 'busy'
     },
     

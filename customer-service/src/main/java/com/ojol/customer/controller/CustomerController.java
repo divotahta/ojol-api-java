@@ -3,6 +3,7 @@ package com.ojol.customer.controller;
 import com.ojol.customer.model.Customer;
 import com.ojol.customer.service.CustomerService;
 import com.ojol.customer.dto.UserDto;
+import com.ojol.customer.dto.CustomerRequestDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +22,11 @@ public class CustomerController {
         return ResponseEntity.ok(customerService.getAllCustomers());
     }
 
+    @GetMapping("/ping")
+    public ResponseEntity<String> ping() {
+        return ResponseEntity.ok("Customer Service is alive");
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Customer> getCustomerById(@PathVariable Long id) {
         Optional<Customer> customer = customerService.getCustomerById(id);
@@ -34,8 +40,8 @@ public class CustomerController {
     }
 
     @PostMapping
-    public ResponseEntity<Customer> createCustomer(@RequestBody Customer customer) {
-        return ResponseEntity.ok(customerService.createCustomer(customer));
+    public ResponseEntity<Customer> createCustomer(@RequestBody CustomerRequestDTO customerDTO) {
+        return ResponseEntity.ok(customerService.createCustomerFromDTO(customerDTO));
     }
 
     @PutMapping("/{id}")
@@ -55,4 +61,5 @@ public class CustomerController {
     public UserDto getUserDetail(@PathVariable Long userId) {
         return customerService.getUserDetail(userId);
     }
+
 } 

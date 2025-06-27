@@ -1,35 +1,35 @@
 // API utilities for OjoL Frontend
 
 class API {
-  constructor() {
-    this.baseURL = CONFIG.API.BASE_URL;
-    this.timeout = CONFIG.API.TIMEOUT;
-  }
+    constructor() {
+        this.baseURL = CONFIG.API.BASE_URL;
+        this.timeout = CONFIG.API.TIMEOUT;
+    }
 
-  async request(endpoint, options = {}) {
-    const url = `${this.baseURL}${endpoint}`;
-    const token = auth.getToken();
-
-    const defaultOptions = {
-      headers: {
+    async request(endpoint, options = {}) {
+        const url = `${this.baseURL}${endpoint}`;
+        const token = auth.getToken();
+        
+        const defaultOptions = {
+            headers: {
         "Content-Type": "application/json",
         ...(token && { Authorization: `Bearer ${token}` }),
-      },
+            },
       timeout: this.timeout,
-    };
+        };
 
-    const config = { ...defaultOptions, ...options };
+        const config = { ...defaultOptions, ...options };
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), config.timeout);
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), config.timeout);
 
-      const response = await fetch(url, {
-        ...config,
+            const response = await fetch(url, {
+                ...config,
         signal: controller.signal,
-      });
+            });
 
-      clearTimeout(timeoutId);
+            clearTimeout(timeoutId);
 
       // Parse response body first
       let responseData;
@@ -40,7 +40,7 @@ class API {
         responseData = { message: `HTTP error! status: ${response.status}` };
       }
 
-      if (!response.ok) {
+            if (!response.ok) {
         // Create error with response data
         const error = new Error(responseData.message || `HTTP error! status: ${response.status}`);
         error.status = response.status;
@@ -49,75 +49,99 @@ class API {
       }
 
       return responseData;
-    } catch (error) {
+        } catch (error) {
       console.error("API request failed:", error);
-      throw error;
+            throw error;
+        }
     }
-  }
 
-  // Authentication endpoints
-  async login(credentials) {
+    // Authentication endpoints
+    async login(credentials) {
     return this.request("/auth/login", {
       method: "POST",
       body: JSON.stringify(credentials),
-    });
-  }
+        });
+    }
 
-  async register(userData) {
+    async register(userData) {
     return this.request("/auth/register", {
       method: "POST",
       body: JSON.stringify(userData),
     });
   }
 
-  async validateToken() {
-    try {
-      await this.request("/auth/validate");
-      return true;
-    } catch (error) {
-      return false;
-    }
+  async registerCustomer(customerData) {
+    return this.request("/register/customer", {
+      method: "POST",
+      body: JSON.stringify(customerData),
+    });
   }
 
-  // User endpoints
-  async getUserProfile() {
+  async registerDriver(driverData) {
+    return this.request("/register/driver", {
+      method: "POST",
+      body: JSON.stringify(driverData),
+        });
+    }
+
+    async validateToken() {
+        try {
+      await this.request("/auth/validate");
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    // User endpoints
+    async getUserProfile() {
     const userId = localStorage.getItem("ojol_userId");
     return this.request(`/users/${userId}/with-customer`);
-  }
+    }
 
-  // async getCustomerProfile() {
-  //   const userId = localStorage.getItem("ojol_userId");
-  //   return this.request(`/users/${userId}/with-customer`);
-  // }
 
-  async getAdminProfile() {
+    async getAdminProfile() {
     return this.request("/users/profile");
-  }
+    }
 
-  async getAllUsers() {
+    async getAllUsers() {
     return this.request("/users");
-  }
+    }
 
-  async getUserById(userId) {
-    return this.request(`/users/${userId}`);
-  }
+    async createUser(userData) {
+        return this.request("/users", {
+            method: "POST",
+            body: JSON.stringify(userData),
+        });
+    }
 
-  async updateUser(userId, userData) {
-    return this.request(`/users/${userId}`, {
+    async getUserById(userId) {
+        return this.request(`/users/${userId}`);
+    }
+
+    async updateUser(userId, userData) {
+        return this.request(`/users/${userId}`, {
       method: "PUT",
       body: JSON.stringify(userData),
-    });
-  }
+        });
+    }
 
-  async deleteUser(userId) {
-    return this.request(`/users/${userId}`, {
+    async deleteUser(userId) {
+        return this.request(`/users/${userId}`, {
       method: "DELETE",
-    });
-  }
+        });
+    }
 
-  // Customer endpoints
-  async getCustomerByUserId(userId) {
-    return this.request(`/customers/user/${userId}`);
+    // Customer endpoints
+    async getCustomerByUserId(userId) {
+        return this.request(`/customers/user/${userId}`);
+    }
+
+  async createCustomer(customerData) {
+    return this.request("/customers", {
+      method: "POST",
+      body: JSON.stringify(customerData),
+    });
   }
 
   async updateCustomerProfile(customerId, customerData) {
@@ -132,79 +156,86 @@ class API {
     return this.request(`/orders/user/${userId}`);
   }
 
-  async getCustomerStatistics() {
+    async getCustomerStatistics() {
     return this.request("/customers/statistics");
-  }
+    }
 
-  async getCustomerActiveOrders() {
+    async getCustomerActiveOrders() {
     return this.request("/customers/orders/active");
-  }
+    }
 
-  async getCustomerOrderHistory() {
+    async getCustomerOrderHistory() {
     return this.request("/customers/orders/history");
-  }
+    }
 
-  // Driver endpoints
-  async getDriverProfile() {
+    // Driver endpoints
+    async getDriverProfile() {
     const userId = localStorage.getItem("ojol_userId");
     return this.request(`/drivers/user/${userId}`);
   }
 
-  async getDriverStatus() {
-    return this.request("/drivers/status");
-  }
+  async createDriver(driverData) {
+    return this.request("/drivers", {
+      method: "POST",
+      body: JSON.stringify(driverData),
+    });
+    }
 
-  async updateDriverStatus(statusData) {
+    async getDriverStatus() {
+    return this.request("/drivers/status");
+    }
+
+    async updateDriverStatus(statusData) {
     return this.request("/drivers/status", {
       method: "PUT",
       body: JSON.stringify(statusData),
-    });
-  }
+        });
+    }
 
-  async getDriverVehicle() {
+    async getDriverVehicle() {
     const userId = localStorage.getItem("ojol_userId");
     return this.request(`/drivers/vehicle/${userId}`);
-  }
+    }
 
-  async getDriverStatistics() {
+    async getDriverStatistics() {
     const driverId = localStorage.getItem("ojol_userId");
     return this.request(`/orders/driver/${driverId}/statistics`);
-  }
+    }
 
-  async getAllDrivers() {
+    async getAllDrivers() {
     return this.request("/drivers");
-  }
+    }
 
-  async getDriverById(driverId) {
-    return this.request(`/drivers/${driverId}`);
-  }
+    async getDriverById(driverId) {
+        return this.request(`/drivers/${driverId}`);
+    }
 
-  async updateDriver(driverId, driverData) {
-    return this.request(`/drivers/${driverId}`, {
+    async updateDriver(driverId, driverData) {
+        return this.request(`/drivers/${driverId}`, {
       method: "PUT",
       body: JSON.stringify(driverData),
-    });
-  }
+        });
+    }
 
-  async deleteDriver(driverId) {
-    return this.request(`/drivers/${driverId}`, {
+    async deleteDriver(driverId) {
+        return this.request(`/drivers/${driverId}`, {
       method: "DELETE",
-    });
-  }
+        });
+    }
 
-  // Order endpoints
-  async createOrder(orderData) {
+    // Order endpoints
+    async createOrder(orderData) {
     return this.request("/orders", {
       method: "POST",
       body: JSON.stringify(orderData),
-    });
-  }
+        });
+    }
 
-  async getAvailableOrders() {
+    async getAvailableOrders() {
     return this.request("/orders/waiting");
-  }
+    }
 
-  async getDriverOrders() {
+    async getDriverOrders() {
     const driverId = localStorage.getItem("ojol_userId");
     return this.request(`/orders/driver/${driverId}`);
   }
@@ -212,9 +243,9 @@ class API {
   async getOrderInProgress() {
     const driverId = localStorage.getItem("ojol_userId");
     return this.request(`/orders/driver/${driverId}/in-progress`);
-  }
+    }
 
-  async acceptOrder(orderId) {
+    async acceptOrder(orderId) {
     const driverId = localStorage.getItem("ojol_userId");
     return this.request(`/orders/${orderId}/accept?driverId=${driverId}`, {
       method: "PUT",
@@ -224,27 +255,27 @@ class API {
   async cancelOrder(orderId) {
     return this.request(`/orders/${orderId}/cancel`, {
       method: "PUT",
-    });
-  }
+        });
+    }
 
-  async updateOrderStatus(orderId, statusData) {
-    return this.request(`/orders/${orderId}/status`, {
+    async updateOrderStatus(orderId, statusData) {
+        return this.request(`/orders/${orderId}/status`, {
       method: "PUT",
       body: JSON.stringify(statusData),
-    });
-  }
+        });
+    }
 
-  async getAllOrders() {
+    async getAllOrders() {
     return this.request("/orders");
-  }
+    }
 
-  async getOrderById(orderId) {
-    return this.request(`/orders/${orderId}`);
-  }
+    async getOrderById(orderId) {
+        return this.request(`/orders/${orderId}`);
+    }
 
-  async getOrdersByStatus(status) {
-    return this.request(`/orders?status=${status}`);
-  }
+    async getOrdersByStatus(status) {
+        return this.request(`/orders?status=${status}`);
+    }
 
   async completeOrder(orderId) {
     return this.request(`/orders/${orderId}/complete`, {
@@ -252,14 +283,14 @@ class API {
     });
   }
 
-  async deleteOrder(orderId) {
-    return this.request(`/orders/${orderId}`, {
+    async deleteOrder(orderId) {
+        return this.request(`/orders/${orderId}`, {
       method: "DELETE",
-    });
-  }
+        });
+    }
 
-  // Payment endpoints
-  async getAllPayments() {
+    // Payment endpoints
+    async getAllPayments() {
     return this.request("/payments");
   }
 
@@ -272,73 +303,73 @@ class API {
 
   async getPaymentByOrderId(orderId) {
     return this.request(`/orders/${orderId}/payment`);
-  }
+    }
 
-  async getPaymentById(paymentId) {
-    return this.request(`/payments/${paymentId}`);
-  }
+    async getPaymentById(paymentId) {
+        return this.request(`/payments/${paymentId}`);
+    }
 
-  async createPayment(paymentData) {
+    async createPayment(paymentData) {
     return this.request("/payments", {
       method: "POST",
       body: JSON.stringify(paymentData),
-    });
-  }
+        });
+    }
 
-  async updatePayment(paymentId, paymentData) {
-    return this.request(`/payments/${paymentId}`, {
+    async updatePayment(paymentId, paymentData) {
+        return this.request(`/payments/${paymentId}`, {
       method: "PUT",
       body: JSON.stringify(paymentData),
-    });
-  }
+        });
+    }
 
-  async deletePayment(paymentId) {
-    return this.request(`/payments/${paymentId}`, {
+    async deletePayment(paymentId) {
+        return this.request(`/payments/${paymentId}`, {
       method: "DELETE",
-    });
-  }
+        });
+    }
 
-  // System endpoints
-  async getSystemStatistics() {
+    // System endpoints
+    async getSystemStatistics() {
     return this.request("/system/statistics");
-  }
+    }
 
-  // Utility endpoints
-  async getCoordinates(address) {
-    // Mock coordinates for demo purposes
-    // In real implementation, this would call a geocoding service
-    return {
-      lat: Math.random() * 0.1 + -6.2088, // Jakarta area
+    // Utility endpoints
+    async getCoordinates(address) {
+        // Mock coordinates for demo purposes
+        // In real implementation, this would call a geocoding service
+        return {
+            lat: Math.random() * 0.1 + -6.2088, // Jakarta area
       lng: Math.random() * 0.1 + 106.8456,
-    };
-  }
+        };
+    }
 
-  // Error handling
-  handleError(error) {
+    // Error handling
+    handleError(error) {
     if (error.name === "AbortError") {
       throw new Error("Request timeout");
-    }
-
+        }
+        
     if (error.message.includes("401")) {
-      auth.logout();
+            auth.logout();
       window.location.href = "index.html";
       throw new Error("Unauthorized access");
-    }
-
+        }
+        
     if (error.message.includes("403")) {
       throw new Error("Access forbidden");
-    }
-
+        }
+        
     if (error.message.includes("404")) {
       throw new Error("Resource not found");
-    }
-
+        }
+        
     if (error.message.includes("500")) {
       throw new Error("Server error");
+        }
+        
+        throw error;
     }
-
-    throw error;
-  }
 }
 
 // Create global API instance
@@ -346,5 +377,5 @@ const api = new API();
 
 // Export for use in other modules
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = API;
-}
+    module.exports = API;
+} 
