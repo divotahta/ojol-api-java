@@ -142,7 +142,7 @@
 |---------|------|----------|----------------|
 | **Eureka Server** | 8761 | - | Service Discovery |
 | **API Gateway** | 8080 | - | Routing & CORS |
-| **Auth Service** | 8082 | auth_db | Authentication |
+| **Auth Service** | 8082 | user_db | Authentication |
 | **User Service** | 8081 | user_db | User Management |
 | **Customer Service** | 8086 | customer_db | Customer Data |
 | **Driver Service** | 8083 | driver_db | Driver Management |

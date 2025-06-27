@@ -96,7 +96,7 @@ ojol/
 
 ### Database Configuration
 Setiap service menggunakan database terpisah:
-- `auth_db` - Auth Service
+- `user_db` - Auth Service
 - `user_db` - User Service
 - `customer_db` - Customer Service
 - `driver_db` - Driver Service
