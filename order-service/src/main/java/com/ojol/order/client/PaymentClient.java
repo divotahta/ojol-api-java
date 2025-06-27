@@ -20,4 +20,7 @@ public interface PaymentClient {
     @PutMapping("/payments/order/{orderId}")
     PaymentDto updatePaymentStatusByOrderId(@PathVariable("orderId") Long orderId, @RequestBody java.util.Map<String, String> request);
 
+    @PutMapping("/payments/{paymentId}/status")
+    PaymentDto updatePaymentStatusByAdmin(@PathVariable("paymentId") Long paymentId, @RequestBody java.util.Map<String, String> request);
+
 } 

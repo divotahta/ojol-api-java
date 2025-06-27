@@ -85,10 +85,10 @@ const CONFIG = {
         MAP_ZOOM: 15
     },
     
-    // Default Coordinates (Jakarta)
+    // Default Coordinates (Jember)
     DEFAULT_LOCATION: {
-        lat: -6.2088,
-        lng: 106.8456
+        lat: -7.6172,
+        lng: 112.3453
     }
 };
 

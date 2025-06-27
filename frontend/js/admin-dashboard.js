@@ -133,7 +133,7 @@ class AdminDashboard {
 
     async loadAdminProfile() {
         try {
-            const adminData = await api.getAdminProfile();
+            const adminData = await api.getUserProfile();
             
             // Update navigation
             const adminName = document.getElementById('admin-name');
@@ -148,24 +148,21 @@ class AdminDashboard {
 
     async loadStatistics() {
         try {
-            let stats;
-            try {
-                stats = await api.getSystemStatistics();
-            } catch (e) {
-                // Jika endpoint statistik tidak ada, hitung manual
-                const [users, drivers, orders, payments] = await Promise.all([
-                    api.getAllUsers(),
-                    api.getAllDrivers(),
-                    api.getAllOrders(),
-                    api.getAllPayments()
-                ]);
-                stats = {
-                    totalUsers: users.length,
-                    totalDrivers: drivers.length,
-                    totalOrders: orders.length,
-                    totalPayments: payments.length
-                };
-            }
+            // Hitung statistik manual karena endpoint system/statistics tidak ada
+            const [users, drivers, orders, payments] = await Promise.all([
+                api.getAllUsers(),
+                api.getAllDrivers(),
+                api.getAllOrders(),
+                api.getAllPayments()
+            ]);
+            
+            const stats = {
+                totalUsers: users.length,
+                totalDrivers: drivers.length,
+                totalOrders: orders.length,
+                totalPayments: payments.length
+            };
+            
             const totalUsers = document.getElementById('total-users');
             const totalDrivers = document.getElementById('total-drivers');
             const totalOrders = document.getElementById('total-orders');
@@ -182,7 +179,39 @@ class AdminDashboard {
 
     async loadUserManagement() {
         try {
+            ui.showLoading();
             const users = await api.getAllUsers();
+            
+            // Cek order history untuk setiap user
+            const usersWithOrderInfo = await Promise.all(
+                users.map(async (user) => {
+                    try {
+                        const userOrders = await api.getOrdersByUserId(user.id);
+                        const hasActiveOrders = userOrders.some(order => 
+                            order.status === 'waiting' || 
+                            order.status === 'accepted' || 
+                            order.status === 'in_progress'
+                        );
+                        const hasOrderHistory = userOrders.length > 0;
+                        
+                        return {
+                            ...user,
+                            hasActiveOrders,
+                            hasOrderHistory,
+                            orderCount: userOrders.length
+                        };
+                    } catch (error) {
+                        console.error(`Error checking orders for user ${user.id}:`, error);
+                        return {
+                            ...user,
+                            hasActiveOrders: false,
+                            hasOrderHistory: false,
+                            orderCount: 0
+                        };
+                    }
+                })
+            );
+            
             const container = document.getElementById('user-management');
             
             if (container) {
@@ -196,30 +225,51 @@ class AdminDashboard {
                             </button>
                         </div>
                         <div class="max-h-64 overflow-y-auto">
-                            ${users.length === 0 ? `
+                            ${usersWithOrderInfo.length === 0 ? `
                                 <div class="text-center py-4 text-gray-500">
                                     <i class="fas fa-users text-2xl mb-2"></i>
                                     <p>Tidak ada user</p>
                                 </div>
-                            ` : users.map(user => `
+                            ` : usersWithOrderInfo.map(user => `
                                 <div class="border border-gray-200 rounded-lg p-3 mb-2 hover:shadow-sm transition-shadow">
                                     <div class="flex justify-between items-center">
                                         <div>
                                             <h4 class="font-medium text-gray-800">${user.name}</h4>
                                             <p class="text-sm text-gray-600">${user.email}</p>
-                                            <span class="px-2 py-1 rounded-full text-xs font-medium ${this.getRoleColor(user.role)}">
-                                                ${this.getRoleText(user.role)}
-                                            </span>
+                                            <div class="flex items-center space-x-2 mt-1">
+                                                <span class="px-2 py-1 rounded-full text-xs font-medium ${this.getRoleColor(user.role)}">
+                                                    ${this.getRoleText(user.role)}
+                                                </span>
+                                                ${user.hasOrderHistory ? `
+                                                    <span class="px-2 py-1 rounded-full text-xs font-medium ${user.hasActiveOrders ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}">
+                                                        <i class="fas fa-shopping-cart mr-1"></i>${user.orderCount} orders
+                                                    </span>
+                                                ` : ''}
+                                            </div>
                                         </div>
                                         <div class="flex space-x-2">
                                             <button onclick="adminDashboard.editUser(${user.id})" 
                                                     class="text-blue-600 hover:text-blue-800">
                                                 <i class="fas fa-edit"></i>
                                             </button>
-                                            <button onclick="adminDashboard.deleteUser(${user.id})" 
-                                                    class="text-red-600 hover:text-red-800">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
+                                            ${user.role !== 'admin' && !user.hasOrderHistory ? `
+                                                <button onclick="adminDashboard.deleteUser(${user.id})" 
+                                                        class="text-red-600 hover:text-red-800">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            ` : user.role === 'admin' ? `
+                                                <button disabled 
+                                                        class="text-gray-400 cursor-not-allowed" 
+                                                        title="Akun admin tidak dapat dihapus">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            ` : `
+                                                <button disabled 
+                                                        class="text-gray-400 cursor-not-allowed" 
+                                                        title="Tidak dapat dihapus karena memiliki riwayat pesanan">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            `}
                                         </div>
                                     </div>
                                 </div>
@@ -230,12 +280,47 @@ class AdminDashboard {
             }
         } catch (error) {
             console.error('Error loading user management:', error);
+            ui.showError('Gagal memuat data user');
+        } finally {
+            ui.hideLoading();
         }
     }
 
     async loadDriverManagement() {
         try {
+            ui.showLoading();
             const drivers = await api.getAllDrivers();
+            
+            // Cek order history untuk setiap driver
+            const driversWithOrderInfo = await Promise.all(
+                drivers.map(async (driver) => {
+                    try {
+                        const driverOrders = await api.getOrdersByDriverId(driver.userId);
+                        const hasActiveOrders = driverOrders.some(order => 
+                            order.status === 'waiting' || 
+                            order.status === 'accepted' || 
+                            order.status === 'in_progress'
+                        );
+                        const hasOrderHistory = driverOrders.length > 0;
+                        
+                        return {
+                            ...driver,
+                            hasActiveOrders,
+                            hasOrderHistory,
+                            orderCount: driverOrders.length
+                        };
+                    } catch (error) {
+                        console.error(`Error checking orders for driver ${driver.id}:`, error);
+                        return {
+                            ...driver,
+                            hasActiveOrders: false,
+                            hasOrderHistory: false,
+                            orderCount: 0
+                        };
+                    }
+                })
+            );
+            
             const container = document.getElementById('driver-management');
             
             if (container) {
@@ -249,12 +334,12 @@ class AdminDashboard {
                             </button>
                         </div>
                         <div class="max-h-64 overflow-y-auto">
-                            ${drivers.length === 0 ? `
+                            ${driversWithOrderInfo.length === 0 ? `
                                 <div class="text-center py-4 text-gray-500">
                                     <i class="fas fa-motorcycle text-2xl mb-2"></i>
                                     <p>Tidak ada driver</p>
                                 </div>
-                            ` : drivers.map(driver => `
+                            ` : driversWithOrderInfo.map(driver => `
                                 <div class="border border-gray-200 rounded-lg p-3 mb-2 hover:shadow-sm transition-shadow">
                                     <div class="flex justify-between items-start">
                                         <div class="flex-1">
@@ -264,6 +349,11 @@ class AdminDashboard {
                                                 <span class="px-2 py-1 rounded-full text-xs font-medium ${this.getStatusColor(driver.status)}">
                                                     ${this.getStatusText(driver.status)}
                                                 </span>
+                                                ${driver.hasOrderHistory ? `
+                                                    <span class="px-2 py-1 rounded-full text-xs font-medium ${driver.hasActiveOrders ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}">
+                                                        <i class="fas fa-shopping-cart mr-1"></i>${driver.orderCount} orders
+                                                    </span>
+                                                ` : ''}
                                             </div>
                                             <div class="text-xs text-gray-500 space-y-1">
                                                 <div class="flex items-center space-x-1">
@@ -281,10 +371,18 @@ class AdminDashboard {
                                                     class="text-blue-600 hover:text-blue-800">
                                                 <i class="fas fa-edit"></i>
                                             </button>
-                                            <button onclick="adminDashboard.deleteDriver(${driver.id})" 
-                                                    class="text-red-600 hover:text-red-800">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
+                                            ${!driver.hasOrderHistory ? `
+                                                <button onclick="adminDashboard.deleteDriver(${driver.id})" 
+                                                        class="text-red-600 hover:text-red-800">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            ` : `
+                                                <button disabled 
+                                                        class="text-gray-400 cursor-not-allowed" 
+                                                        title="Tidak dapat dihapus karena memiliki riwayat pesanan">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            `}
                                         </div>
                                     </div>
                                 </div>
@@ -295,6 +393,9 @@ class AdminDashboard {
             }
         } catch (error) {
             console.error('Error loading driver management:', error);
+            ui.showError('Gagal memuat data driver');
+        } finally {
+            ui.hideLoading();
         }
     }
 
@@ -331,8 +432,8 @@ class AdminDashboard {
                                         <div class="flex-1">
                                             <div class="flex items-center space-x-2 mb-1">
                                                 <h4 class="font-medium text-gray-800">Order #${order.id}</h4>
-                                                <span class="px-2 py-1 rounded-full text-xs font-medium ${this.getStatusColor(order.status)}">
-                                                    ${this.getStatusText(order.status)}
+                                                <span class="px-2 py-1 rounded-full text-xs font-medium ${this.getOrderStatusColor(order.status)}">
+                                                    ${this.getOrderStatusText(order.status)}
                                                 </span>
                                             </div>
                                             <p class="text-sm text-gray-600 mb-1">
@@ -342,7 +443,7 @@ class AdminDashboard {
                                                 <i class="fas fa-map-marker text-red-500 mr-1"></i>${order.destination}
                                             </p>
                                             <p class="text-sm text-gray-600">
-                                                <i class="fas fa-money-bill text-blue-500 mr-1"></i>Rp ${order.fare?.toLocaleString() || '0'}
+                                                <i class="fas fa-money-bill text-blue-500 mr-1"></i>Rp ${order.price?.toLocaleString() || '0'}
                                             </p>
                                         </div>
                                         <div class="flex space-x-2">
@@ -351,7 +452,7 @@ class AdminDashboard {
                                                 <i class="fas fa-eye"></i>
                                             </button>
                                             <button onclick="adminDashboard.updateOrderStatus(${order.id})" 
-                                                    class="text-green-600 hover:text-green-800">
+                                                    class="text-green-600 hover:text-green-800 hidden">
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                         </div>
@@ -692,14 +793,53 @@ class AdminDashboard {
     }
 
     async deleteUser(userId) {
-        if (!confirm('Yakin ingin menghapus user ini?')) return;
         try {
-            await api.deleteUser(userId);
-            ui.showToast('User berhasil dihapus');
-            await this.loadUserManagement();
-            await this.loadStatistics();
+            ui.showLoading();
+            
+            // Ambil data user untuk validasi
+            const user = await api.getUserById(userId);
+            
+            // Cek apakah user adalah admin
+            if (user.role === 'admin') {
+                ui.showError('Akun admin tidak dapat dihapus');
+                ui.hideLoading();
+                return;
+            }
+            
+            // Cek apakah user memiliki order history
+            const userOrders = await api.getOrdersByUserId(userId);
+            const hasActiveOrders = userOrders.some(order => 
+                order.status === 'waiting' || 
+                order.status === 'accepted' || 
+                order.status === 'in_progress'
+            );
+            
+            if (userOrders.length > 0) {
+                if (hasActiveOrders) {
+                    ui.showError('User tidak dapat dihapus karena memiliki pesanan yang sedang berjalan');
+                } else {
+                    ui.showError('User tidak dapat dihapus karena memiliki riwayat pesanan');
+                }
+                ui.hideLoading();
+                return;
+            }
+            
+            // Tampilkan modal konfirmasi
+            this.showDeleteConfirmation('user', user.name, async () => {
+                try {
+                    await api.deleteUser(userId);
+                    ui.showToast('User berhasil dihapus');
+                    await this.loadUserManagement();
+                    await this.loadStatistics();
+                } catch (err) {
+                    ui.showError('Gagal hapus user: ' + (err.responseData?.message || err.message));
+                }
+            });
+            
         } catch (err) {
             ui.showError('Gagal hapus user: ' + (err.responseData?.message || err.message));
+        } finally {
+            ui.hideLoading();
         }
     }
 
@@ -933,21 +1073,62 @@ class AdminDashboard {
     }
 
     async deleteDriver(driverId) {
-        if (!confirm('Yakin ingin menghapus driver ini?')) return;
         try {
-            await api.deleteDriver(driverId);
-            ui.showToast('Driver berhasil dihapus');
-            await this.loadDriverManagement();
-            await this.loadStatistics();
+            ui.showLoading();
+            
+            // Ambil data driver untuk mendapatkan userId
+            const driver = await api.getDriverById(driverId);
+            
+            // Cek apakah driver memiliki order history
+            const driverOrders = await api.getOrdersByDriverId(driver.userId);
+            const hasActiveOrders = driverOrders.some(order => 
+                order.status === 'waiting' || 
+                order.status === 'accepted' || 
+                order.status === 'in_progress'
+            );
+            
+            if (driverOrders.length > 0) {
+                if (hasActiveOrders) {
+                    ui.showError('Driver tidak dapat dihapus karena memiliki pesanan yang sedang berjalan');
+                } else {
+                    ui.showError('Driver tidak dapat dihapus karena memiliki riwayat pesanan');
+                }
+                ui.hideLoading();
+                return;
+            }
+            
+            // Tampilkan modal konfirmasi
+            this.showDeleteConfirmation('driver', driver.name, async () => {
+                try {
+                    await api.deleteDriver(driverId);
+                    ui.showToast('Driver berhasil dihapus');
+                    await this.loadDriverManagement();
+                    await this.loadStatistics();
+                } catch (err) {
+                    ui.showError('Gagal hapus driver: ' + (err.responseData?.message || err.message));
+                }
+            });
+            
         } catch (err) {
             ui.showError('Gagal hapus driver: ' + (err.responseData?.message || err.message));
+        } finally {
+            ui.hideLoading();
         }
     }
 
     async viewOrder(orderId) {
         try {
             ui.showLoading();
-            const order = await api.getOrderById(orderId);
+            const response = await api.getOrderById(orderId);
+            console.log('Order response:', response);
+            
+            // API mengembalikan { order: {...}, paymentStatus: "..." }
+            const order = response.order || response;
+            
+            if (!order || !order.id) {
+                ui.showError('Data order tidak valid');
+                return;
+            }
             
             const html = `
                 <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
@@ -957,21 +1138,21 @@ class AdminDashboard {
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                            <span class="px-3 py-1 rounded-full text-sm font-medium ${this.getStatusColor(order.status)}">
-                                ${this.getStatusText(order.status)}
+                            <span class="px-3 py-1 rounded-full text-sm font-medium ${this.getOrderStatusColor(order.status)}">
+                                ${this.getOrderStatusText(order.status)}
                             </span>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Customer</label>
-                            <p class="text-gray-800">${order.customerName || 'N/A'}</p>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Customer ID</label>
+                            <p class="text-gray-800">${order.userId || 'N/A'}</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Origin</label>
-                            <p class="text-gray-800">${order.origin}</p>
+                            <p class="text-gray-800">${order.origin || 'N/A'}</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Destination</label>
-                            <p class="text-gray-800">${order.destination}</p>
+                            <p class="text-gray-800">${order.destination || 'N/A'}</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Price</label>
@@ -983,12 +1164,20 @@ class AdminDashboard {
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Created At</label>
-                            <p class="text-gray-800">${new Date(order.createdAt).toLocaleString()}</p>
+                            <p class="text-gray-800">${order.createdAt ? new Date(order.createdAt).toLocaleString() : 'N/A'}</p>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Driver</label>
-                            <p class="text-gray-800">${order.driver?.name || 'Belum ada driver'}</p>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Driver ID</label>
+                            <p class="text-gray-800">${order.driverId || 'Belum ada driver'}</p>
                         </div>
+                        ${response.paymentStatus ? `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Payment Status</label>
+                            <span class="px-3 py-1 rounded-full text-sm font-medium ${this.getPaymentStatusColor(response.paymentStatus)}">
+                                ${this.getPaymentStatusText(response.paymentStatus)}
+                            </span>
+                        </div>
+                        ` : ''}
                     </div>
                     <div class="flex justify-end space-x-3 pt-4">
                         <button onclick="adminDashboard.hideModal()" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
@@ -1013,7 +1202,18 @@ class AdminDashboard {
     async updateOrderStatus(orderId) {
         try {
             ui.showLoading();
-            const order = await api.getOrderById(orderId);
+            const response = await api.getOrderById(orderId);
+            
+            // API mengembalikan { order: {...}, paymentStatus: "..." }
+            const order = response.order || response;
+            
+            if (!order || !order.id) {
+                ui.showError('Data order tidak valid');
+                return;
+            }
+            
+            // Dapatkan opsi status yang valid berdasarkan status saat ini
+            const validStatusOptions = this.getValidStatusOptions(order.status);
             
             const html = `
                 <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
@@ -1023,25 +1223,31 @@ class AdminDashboard {
                     <input type="hidden" id="update-order-id" value="${order.id}">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Status Saat Ini</label>
-                        <span class="px-3 py-1 rounded-full text-sm font-medium ${this.getStatusColor(order.status)}">
-                            ${this.getStatusText(order.status)}
+                        <span class="px-3 py-1 rounded-full text-sm font-medium ${this.getOrderStatusColor(order.status)}">
+                            ${this.getOrderStatusText(order.status)}
                         </span>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Status Baru</label>
                         <select id="update-order-status" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500">
-                            <option value="waiting" ${order.status === 'waiting' ? 'selected' : ''}>Waiting</option>
-                            <option value="accepted" ${order.status === 'accepted' ? 'selected' : ''}>Accepted</option>
-                            <option value="in_progress" ${order.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
-                            <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>Completed</option>
-                            <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                            <option value="">Pilih Status Baru</option>
+                            ${validStatusOptions.map(status => `
+                                <option value="${status.value}">
+                                    ${status.label}
+                                </option>
+                            `).join('')}
                         </select>
+                        ${validStatusOptions.length === 0 ? `
+                            <p class="text-sm text-red-600 mt-1">
+                                Status "${this.getOrderStatusText(order.status)}" tidak dapat diubah lagi
+                            </p>
+                        ` : ''}
                     </div>
                     <div class="flex justify-end space-x-3 pt-4">
                         <button type="button" onclick="adminDashboard.hideModal()" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
                             Batal
                         </button>
-                        <button type="submit" class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600">
+                        <button type="submit" class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600" ${validStatusOptions.length === 0 ? 'disabled' : ''}>
                             <i class="fas fa-save mr-1"></i>Update
                         </button>
                     </div>
@@ -1063,11 +1269,38 @@ class AdminDashboard {
         }
     }
 
+    getValidStatusOptions(currentStatus) {
+        // Sesuai dengan validasi backend di OrderController.isValidStatusTransition()
+        const validTransitions = {
+            'waiting': [
+                { value: 'in_progress', label: 'Dalam Proses' },
+                { value: 'cancelled', label: 'Dibatalkan' }
+            ],
+            'in_progress': [
+                { value: 'on_trip', label: 'Dalam Perjalanan' },
+                { value: 'cancelled', label: 'Dibatalkan' }
+            ],
+            'on_trip': [
+                { value: 'completed', label: 'Selesai' },
+                { value: 'cancelled', label: 'Dibatalkan' }
+            ],
+            'completed': [], // Tidak bisa diubah lagi
+            'cancelled': []  // Tidak bisa diubah lagi
+        };
+        
+        return validTransitions[currentStatus] || [];
+    }
+
     async submitUpdateOrderStatus() {
         try {
             ui.showLoading();
             const orderId = document.getElementById('update-order-id').value;
             const newStatus = document.getElementById('update-order-status').value;
+
+            if (!newStatus) {
+                ui.showError('Pilih status baru terlebih dahulu');
+                return;
+            }
 
             const result = await api.updateOrderStatus(orderId, { status: newStatus });
             if (result && result.success) {
@@ -1079,7 +1312,13 @@ class AdminDashboard {
             }
         } catch (error) {
             console.error('Error updating order status:', error);
-            ui.showError('Gagal mengupdate status order');
+            
+            // Handle specific error messages from backend
+            if (error.responseData && error.responseData.message) {
+                ui.showError(error.responseData.message);
+            } else {
+                ui.showError('Gagal mengupdate status order: ' + error.message);
+            }
         } finally {
             ui.hideLoading();
         }
@@ -1112,7 +1351,7 @@ class AdminDashboard {
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
-                            <p class="text-gray-800">${payment.paymentMethod || 'N/A'}</p>
+                            <p class="text-gray-800">${payment.method || 'N/A'}</p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Created At</label>
@@ -1127,7 +1366,7 @@ class AdminDashboard {
                         <button onclick="adminDashboard.hideModal()" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
                             Tutup
                         </button>
-                        <button onclick="adminDashboard.updatePaymentStatus(${payment.id})" class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600">
+                        <button onclick="adminDashboard.updatePaymentStatus(${payment.id})" class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 hidden">
                             <i class="fas fa-edit mr-1"></i>Update Status
                         </button>
                     </div>
@@ -1201,8 +1440,14 @@ class AdminDashboard {
             const paymentId = document.getElementById('update-payment-id').value;
             const newStatus = document.getElementById('update-payment-status').value;
 
-            const result = await api.updatePaymentStatus(paymentId, { status: newStatus });
-            if (result && result.success) {
+            if (!newStatus) {
+                ui.showError('Pilih status baru terlebih dahulu');
+                return;
+            }
+
+            // Gunakan endpoint yang benar untuk update payment status
+            const result = await api.updatePaymentStatusByAdmin(paymentId, { status: newStatus });
+            if (result) {
                 ui.showToast('Status payment berhasil diupdate!');
                 this.hideModal();
                 await this.loadDashboard();
@@ -1211,7 +1456,13 @@ class AdminDashboard {
             }
         } catch (error) {
             console.error('Error updating payment status:', error);
-            ui.showError('Gagal mengupdate status payment');
+            
+            // Handle specific error messages from backend
+            if (error.responseData && error.responseData.message) {
+                ui.showError(error.responseData.message);
+            } else {
+                ui.showError('Gagal mengupdate status payment: ' + error.message);
+            }
         } finally {
             ui.hideLoading();
         }
@@ -1250,6 +1501,30 @@ class AdminDashboard {
             'available': 'Available',
             'unavailable': 'Unavailable',
             'busy': 'Sibuk'
+        };
+        return texts[status] || status;
+    }
+
+    getOrderStatusColor(status) {
+        const colors = {
+            'waiting': 'bg-yellow-100 text-yellow-800',
+            'accepted': 'bg-blue-100 text-blue-800',
+            'in_progress': 'bg-orange-100 text-orange-800',
+            'on_trip': 'bg-purple-100 text-purple-800',
+            'completed': 'bg-green-100 text-green-800',
+            'cancelled': 'bg-red-100 text-red-800'
+        };
+        return colors[status] || 'bg-gray-100 text-gray-800';
+    }
+
+    getOrderStatusText(status) {
+        const texts = {
+            'waiting': 'Menunggu',
+            'accepted': 'Diterima',
+            'in_progress': 'Dalam Proses',
+            'on_trip': 'Dalam Perjalanan',
+            'completed': 'Selesai',
+            'cancelled': 'Dibatalkan'
         };
         return texts[status] || status;
     }
@@ -1314,6 +1589,39 @@ class AdminDashboard {
 
     async filterPayments(status) {
         ui.showToast('Fitur filter payment akan segera hadir');
+    }
+
+    showDeleteConfirmation(type, name, callback) {
+        this.showModal(`
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-trash text-red-600 text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-800 mb-2">Konfirmasi Penghapusan</h3>
+                <p class="text-gray-600 mb-6">Apakah Anda yakin ingin menghapus ${type} "${name}"?</p>
+                <div class="flex space-x-3">
+                    <button onclick="adminDashboard.hideModal()" 
+                            class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors">
+                        Batal
+                    </button>
+                    <button onclick="adminDashboard.executeDelete()" 
+                            class="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors">
+                        <i class="fas fa-trash mr-2"></i>Hapus
+                    </button>
+                </div>
+            </div>
+        `);
+        
+        // Simpan callback untuk eksekusi nanti
+        this.pendingDeleteCallback = callback;
+    }
+
+    executeDelete() {
+        this.hideModal();
+        if (this.pendingDeleteCallback) {
+            this.pendingDeleteCallback();
+            this.pendingDeleteCallback = null;
+        }
     }
 }
 

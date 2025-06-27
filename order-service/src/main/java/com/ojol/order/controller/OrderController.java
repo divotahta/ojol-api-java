@@ -271,6 +271,12 @@ public class OrderController {
         return ResponseEntity.notFound().build();
     }
 
+    @PutMapping("/payments/{paymentId}/status")
+    public ResponseEntity<PaymentDto> updatePaymentStatusByAdmin(@PathVariable Long paymentId, @RequestBody Map<String, String> request) {
+        PaymentDto payment = paymentClient.updatePaymentStatusByAdmin(paymentId, request);
+        return ResponseEntity.ok(payment);
+    }
+
     @PutMapping("/{id}/payment")
     public ResponseEntity<?> updatePaymentStatus(@PathVariable Long id, @RequestBody Map<String, Object> request) {
         Optional<Order> orderOpt = orderRepository.findById(id);

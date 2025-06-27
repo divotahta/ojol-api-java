@@ -270,11 +270,20 @@ class API {
     }
 
     async getOrderById(orderId) {
+      
         return this.request(`/orders/${orderId}`);
     }
 
     async getOrdersByStatus(status) {
         return this.request(`/orders?status=${status}`);
+    }
+
+    async getOrdersByUserId(userId) {
+        return this.request(`/orders/user/${userId}`);
+    }
+
+    async getOrdersByDriverId(driverId) {
+        return this.request(`/orders/driver/${driverId}`);
     }
 
   async completeOrder(orderId) {
@@ -320,6 +329,13 @@ class API {
         return this.request(`/payments/${paymentId}`, {
       method: "PUT",
       body: JSON.stringify(paymentData),
+        });
+    }
+
+    async updatePaymentStatusByAdmin(paymentId, statusData) {
+        return this.request(`/payments/${paymentId}/status`, {
+      method: "PUT",
+      body: JSON.stringify(statusData),
         });
     }
 
