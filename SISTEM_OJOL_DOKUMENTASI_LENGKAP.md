@@ -127,8 +127,8 @@ Sistem Ojek Online (OJOL) adalah aplikasi berbasis microservices yang meniru lay
 
 ### Development Tools
 - **Maven** - Build tool dan dependency management
-- **Docker** - Containerization
-- **Docker Compose** - Multi-container orchestration
+- **** - Containerization
+- ** Compose** - Multi-container orchestration
 
 ### Monitoring & Testing
 - **Kafka UI** - Kafka monitoring
@@ -311,13 +311,13 @@ spring:
 ### Prerequisites
 - Java 17 atau lebih tinggi
 - Maven 3.6+
-- Docker dan Docker Compose
+-  dan  Compose
 - MySQL/PostgreSQL (opsional, bisa menggunakan H2)
 
-### 1. Setup Kafka dengan Docker
+### 1. Setup Kafka dengan 
 ```bash
 # Jalankan Kafka dan Kafka UI
-docker-compose up -d
+-compose up -d
 
 # Atau jalankan manual
 ./start-kafka-manual.sh
@@ -427,13 +427,13 @@ tail -f driver-service/logs/application.log
 **Solusi**:
 ```bash
 # Check Kafka status
-docker ps | grep kafka
+ ps | grep kafka
 
 # Restart Kafka
-docker-compose restart kafka
+-compose restart kafka
 
 # Check Kafka logs
-docker logs kafka
+ logs kafka
 ```
 
 #### 2. Database Connection Error
@@ -441,13 +441,13 @@ docker logs kafka
 **Solusi**:
 ```bash
 # Check database status
-docker ps | grep mysql
+ ps | grep mysql
 
 # Restart database
-docker-compose restart mysql
+-compose restart mysql
 
 # Check database logs
-docker logs mysql
+ logs mysql
 ```
 
 #### 3. Event Kafka Tidak Muncul
@@ -554,10 +554,10 @@ docker logs mysql
 
 ### Production Deployment
 ```bash
-# Build Docker images
-docker build -t ojol-order-service ./order-service
-docker build -t ojol-payment-service ./payment-service
-docker build -t ojol-driver-service ./driver-service
+# Build  images
+ build -t ojol-order-service ./order-service
+ build -t ojol-payment-service ./payment-service
+ build -t ojol-driver-service ./driver-service
 
 # Deploy dengan Kubernetes
 kubectl apply -f k8s/

@@ -1,5 +1,5 @@
 @echo off
-echo Starting Kafka and Zookeeper without Docker...
+echo Starting Kafka and Zookeeper without ...
 echo.
 
 REM Set Kafka home directory - Update sesuai path Anda

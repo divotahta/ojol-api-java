@@ -94,7 +94,7 @@ Setiap service menggunakan database terpisah:
 
 ### 1. Menjalankan Kafka
 ```bash
-docker-compose up -d
+-compose up -d
 ```
 
 ### 2. Menjalankan Microservices
