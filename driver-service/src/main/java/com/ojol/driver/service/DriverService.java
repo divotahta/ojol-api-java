@@ -11,14 +11,19 @@ import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.HashMap;
+import java.math.BigDecimal;
 
 @Service
 public class DriverService {
+
+    private static final Logger log = LoggerFactory.getLogger(DriverService.class);
 
     @Autowired
     private DriverRepository driverRepository;
@@ -51,18 +56,23 @@ public class DriverService {
                 driver.setStatus("busy");
                 driverRepository.save(driver);
 
-                // Update order dengan driver_id dan status
-                String orderUrl = getOrderServiceUrl() + "/orders/" + orderId + "/status";
-                Map<String, Object> request = Map.of(
-                    "status", "in_progress",
-                    "driverId", driverId
-                );
+                // Gunakan endpoint yang benar untuk accept order (yang mengirim event Kafka)
+                // Event ORDER_ACCEPTED akan otomatis membuat pembayaran di Payment Service
+                String orderUrl = getOrderServiceUrl() + "/orders/" + orderId + "/accept?driverId=" + driverId;
                 
-                ResponseEntity<Map> response = restTemplate.postForEntity(orderUrl, request, Map.class);
-                return response.getStatusCode().is2xxSuccessful();
+                ResponseEntity<Map> response = restTemplate.exchange(orderUrl, HttpMethod.PUT, null, Map.class);
+                
+                if (response.getStatusCode().is2xxSuccessful()) {
+                    log.info("Driver {} berhasil menerima order {} - pembayaran sudah dibuat otomatis saat order dibuat", driverId, orderId);
+                    return true;
+                } else {
+                    log.error("Gagal menerima order {} oleh driver {}", orderId, driverId);
+                    return false;
+                }
             }
             return false;
         } catch (Exception e) {
+            log.error("Error saat driver {} menerima order {}: {}", driverId, orderId, e.getMessage());
             e.printStackTrace();
             return false;
         }
@@ -93,14 +103,10 @@ public class DriverService {
                 driver.setStatus("available");
                 driverRepository.save(driver);
 
-                // Update order status menjadi completed
-                String orderUrl = getOrderServiceUrl() + "/orders/" + orderId + "/status";
-                Map<String, Object> request = Map.of(
-                    "status", "completed",
-                    "driverId", driverId
-                );
+                // Gunakan endpoint yang benar untuk complete order (yang mengirim event Kafka)
+                String orderUrl = getOrderServiceUrl() + "/orders/" + orderId + "/complete";
                 
-                ResponseEntity<Map> response = restTemplate.postForEntity(orderUrl, request, Map.class);
+                ResponseEntity<Map> response = restTemplate.exchange(orderUrl, HttpMethod.PUT, null, Map.class);
                 return response.getStatusCode().is2xxSuccessful();
             }
             return false;
@@ -177,7 +183,7 @@ public class DriverService {
             return driverOrders.stream()
                 .anyMatch(order -> {
                     String status = (String) order.get("status");
-                    return "in_progress".equals(status) || "assigned".equals(status);
+                    return "in_progress".equals(status) || "in_progress".equals(status);
                 });
         } catch (Exception e) {
             e.printStackTrace();

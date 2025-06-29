@@ -6,6 +6,7 @@ import com.ojol.order.model.Order;
 import com.ojol.order.repository.OrderRepository;
 import com.ojol.order.client.UserClient;
 import com.ojol.order.dto.UserDto;
+import com.ojol.order.dto.OrderEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,9 @@ public class OrderService {
     
     @Autowired
     private PaymentClient paymentClient;
+    
+    @Autowired
+    private KafkaProducerService kafkaProducerService;
     
     // public List<Order> getAllOrders() {
     //     log.info("Mengambil semua order dari database lokal");
@@ -77,41 +81,70 @@ public class OrderService {
         return !waitingOrders.isEmpty();
     }
     
-    // public Order createOrder(Order order) {
-    //     log.info("Membuat order baru untuk user ID: {}", order.getUserId());
+    public Order createOrder(Order order) {
+        log.info("Membuat order baru untuk user ID: {}", order.getUserId());
         
-    //     // Check if user has waiting order
-    //     if (hasWaitingOrder(order.getUserId())) {
-    //         log.error("User {} masih memiliki order dengan status waiting", order.getUserId());
-    //         throw new RuntimeException("Tidak dapat membuat order baru karena masih ada order yang menunggu driver");
-    //     }
+        // Check if user has waiting order
+        if (hasWaitingOrder(order.getUserId())) {
+            log.error("User {} masih memiliki order dengan status waiting", order.getUserId());
+            throw new RuntimeException("Tidak dapat membuat order baru karena masih ada order yang menunggu driver");
+        }
         
-    //     // Set default values
-    //     order.setStatus("waiting");
-    //     order.setCreatedAt(LocalDateTime.now());
-    //     order.setUpdatedAt(LocalDateTime.now());
+        // Set default values
+        order.setStatus("waiting");
+        order.setCreatedAt(LocalDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
         
-    //     // Calculate distance and price
-    //     BigDecimal distance = calculateDistance(
-    //         order.getOriginLat(), 
-    //         order.getOriginLng(), 
-    //         order.getDestinationLat(), 
-    //         order.getDestinationLng()
-    //     );
-    //     order.setDistance(distance);
+        // Calculate distance and price
+        BigDecimal distance = calculateDistance(
+            order.getOriginLat(), 
+            order.getOriginLng(), 
+            order.getDestinationLat(), 
+            order.getDestinationLng()
+        );
+        order.setDistance(distance);
         
-    //     BigDecimal price = calculatePrice(distance);
-    //     order.setPrice(price);
+        BigDecimal price = calculatePrice(distance);
+        order.setPrice(price);
         
-    //     Order savedOrder = orderRepository.save(order);
-    //     log.info("Order berhasil dibuat dengan ID: {}, harga: {}, jarak: {} km", 
-    //         savedOrder.getId(), 
-    //         savedOrder.getPrice(), 
-    //         savedOrder.getDistance()
-    //     );
+        Order savedOrder = orderRepository.save(order);
+        log.info("Order berhasil dibuat dengan ID: {}, harga: {}, jarak: {} km", 
+            savedOrder.getId(), 
+            savedOrder.getPrice(), 
+            savedOrder.getDistance()
+        );
         
-    //     return savedOrder;
-    // }
+        // Buat pembayaran otomatis saat order dibuat
+        try {
+            createPayment(savedOrder);
+            log.info("Pembayaran otomatis berhasil dibuat untuk order ID: {}", savedOrder.getId());
+        } catch (Exception e) {
+            log.error("Gagal membuat pembayaran otomatis untuk order {}: {}", savedOrder.getId(), e.getMessage());
+            // Jangan throw exception karena order sudah berhasil dibuat
+        }
+        
+        // Send Kafka event
+        try {
+            OrderEvent orderEvent = new OrderEvent();
+            orderEvent.setOrderId(savedOrder.getId());
+            orderEvent.setCustomerId(savedOrder.getUserId());
+            orderEvent.setPickupLocation(savedOrder.getOrigin());
+            orderEvent.setDestinationLocation(savedOrder.getDestination());
+            orderEvent.setTotalPrice(savedOrder.getPrice());
+            orderEvent.setStatus(savedOrder.getStatus());
+            orderEvent.setCreatedAt(savedOrder.getCreatedAt());
+            
+            log.info("Attempting to send order created event to Kafka for order ID: {}", savedOrder.getId());
+            kafkaProducerService.sendOrderCreatedEvent(orderEvent);
+            log.info("Order created event sent to Kafka for order ID: {}", savedOrder.getId());
+        } catch (Exception e) {
+            log.error("Failed to send order created event to Kafka for order ID {}: {}", savedOrder.getId(), e.getMessage());
+            log.error("Stack trace:", e);
+            // Don't throw exception to avoid breaking order creation
+        }
+        
+        return savedOrder;
+    }
     
     // public Order updateOrder(Long id, Order orderDetails) {
     //     log.info("Update order dengan ID: {}", id);
@@ -147,103 +180,203 @@ public class OrderService {
     //     }
     // }
     
-    // public Order assignDriverToOrder(Long orderId, Long driverId) {
-    //     log.info("Assign driver {} ke order {}", driverId, orderId);
+    public Order assignDriverToOrder(Long orderId, Long driverId) {
+        log.info("Mengassign driver {} ke order {}", driverId, orderId);
         
-    //     // Validasi driver exists di Driver Service
-    //     try {
-    //         DriverDto driver = driverClient.getDriverById(driverId);
-    //         log.info("Driver ditemukan: {} (ID: {})", driver.getName(), driver.getId());
+        // Validasi driver exists dan available
+        try {
+            DriverDto driver = driverClient.getDriverById(driverId);
+            log.info("Driver ditemukan: {} (ID: {})", driver.getName(), driver.getId());
             
-    //         // Check if driver is available
-    //         if (!"available".equals(driver.getStatus())) {
-    //             log.error("Driver {} tidak available, status: {}", driverId, driver.getStatus());
-    //             throw new RuntimeException("Driver tidak available");
-    //         }
-    //     } catch (Exception e) {
-    //         log.error("Driver dengan ID {} tidak ditemukan di Driver Service", driverId);
-    //         throw new RuntimeException("Driver tidak ditemukan: " + driverId);
-    //     }
+            // Check if driver is available
+            if (!"available".equals(driver.getStatus())) {
+                log.error("Driver {} tidak available, status: {}", driverId, driver.getStatus());
+                throw new RuntimeException("Driver tidak available");
+            }
+        } catch (Exception e) {
+            log.error("Driver dengan ID {} tidak ditemukan di Driver Service", driverId);
+            throw new RuntimeException("Driver tidak ditemukan: " + driverId);
+        }
         
-    //     Optional<Order> orderOpt = orderRepository.findById(orderId);
-    //     if (orderOpt.isPresent()) {
-    //         Order order = orderOpt.get();
-    //         order.setDriverId(driverId);
-    //         order.setStatus("assigned");
-    //         order.setUpdatedAt(LocalDateTime.now());
+        Optional<Order> orderOpt = orderRepository.findById(orderId);
+        if (orderOpt.isPresent()) {
+            Order order = orderOpt.get();
             
-    //         Order updatedOrder = orderRepository.save(order);
-    //         log.info("Driver {} berhasil diassign ke order {}", driverId, orderId);
+            // Validasi order status
+            if (!"waiting".equals(order.getStatus())) {
+                log.error("Order {} tidak dalam status waiting, current status: {}", orderId, order.getStatus());
+                throw new RuntimeException("Order tidak dalam status waiting");
+            }
             
-    //         // Update driver status to unavailable
-    //         try {
-    //             driverClient.updateDriverStatus(driverId, "unavailable");
-    //             log.info("Status driver {} diupdate menjadi unavailable", driverId);
-    //         } catch (Exception e) {
-    //             log.error("Gagal update status driver: {}", e.getMessage());
-    //         }
+            // Update order dengan driver dan status in_progress
+            order.setDriverId(driverId);
+            order.setStatus("in_progress");
+            order.setUpdatedAt(LocalDateTime.now());
             
-    //         return updatedOrder;
-    //     } else {
-    //         log.error("Order dengan ID {} tidak ditemukan", orderId);
-    //         throw new RuntimeException("Order tidak ditemukan: " + orderId);
-    //     }
-    // }
+            Order updatedOrder = orderRepository.save(order);
+            log.info("Driver {} berhasil diassign ke order {} dengan status in_progress", driverId, orderId);
+            
+            // Update driver status to unavailable
+            try {
+                driverClient.updateDriverStatus(driverId, "unavailable");
+                log.info("Status driver {} diupdate menjadi unavailable", driverId);
+            } catch (Exception e) {
+                log.error("Gagal update status driver: {}", e.getMessage());
+            }
+            
+            // Send Kafka event ORDER_ACCEPTED
+            try {
+                OrderEvent orderEvent = new OrderEvent();
+                orderEvent.setOrderId(updatedOrder.getId());
+                orderEvent.setCustomerId(updatedOrder.getUserId());
+                orderEvent.setDriverId(updatedOrder.getDriverId());
+                orderEvent.setPickupLocation(updatedOrder.getOrigin());
+                orderEvent.setDestinationLocation(updatedOrder.getDestination());
+                orderEvent.setTotalPrice(updatedOrder.getPrice());
+                orderEvent.setStatus(updatedOrder.getStatus());
+                orderEvent.setCreatedAt(updatedOrder.getCreatedAt());
+                
+                kafkaProducerService.sendOrderAcceptedEvent(orderEvent);
+                log.info("Order accepted event sent to Kafka for order ID: {} - Status: in_progress", updatedOrder.getId());
+            } catch (Exception e) {
+                log.error("Failed to send order accepted event to Kafka: {}", e.getMessage());
+                // Jangan throw exception karena order sudah berhasil diupdate
+            }
+            
+            return updatedOrder;
+        } else {
+            log.error("Order dengan ID {} tidak ditemukan", orderId);
+            throw new RuntimeException("Order tidak ditemukan: " + orderId);
+        }
+    }
     
-    // public Order updateOrderStatus(Long orderId, String status) {
-    //     log.info("Mengupdate status order {} menjadi {}", orderId, status);
+    public Order updateOrderStatus(Long orderId, String status) {
+        log.info("Mengupdate status order {} menjadi {}", orderId, status);
         
-    //     Order order = orderRepository.findById(orderId)
-    //         .orElseThrow(() -> new RuntimeException("Order tidak ditemukan"));
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new RuntimeException("Order tidak ditemukan"));
 
-    //     // Validasi transisi status
-    //     validateStatusTransition(order.getStatus(), status);
+        // Validasi transisi status
+        validateStatusTransition(order.getStatus(), status);
         
-    //     // Update status
-    //     order.setStatus(status);
-    //     order.setUpdatedAt(LocalDateTime.now());
+        // Update status
+        order.setStatus(status);
+        order.setUpdatedAt(LocalDateTime.now());
         
-    //     // Jika status berubah menjadi in_progress, buat pembayaran
-    //     if ("in_progress".equals(status)) {
-    //         try {
-    //             createPayment(order);
-    //             log.info("Berhasil membuat pembayaran untuk order {}", orderId);
-    //         } catch (Exception e) {
-    //             log.error("Gagal membuat pembayaran untuk order {}: {}", orderId, e.getMessage());
-    //             throw new RuntimeException("Gagal membuat pembayaran: " + e.getMessage());
-    //         }
-    //     }
+        Order updatedOrder = orderRepository.save(order);
         
-    //     return orderRepository.save(order);
-    // }
+        // Send Kafka event based on status
+        try {
+            OrderEvent orderEvent = new OrderEvent();
+            orderEvent.setOrderId(updatedOrder.getId());
+            orderEvent.setCustomerId(updatedOrder.getUserId());
+            orderEvent.setDriverId(updatedOrder.getDriverId());
+            orderEvent.setPickupLocation(updatedOrder.getOrigin());
+            orderEvent.setDestinationLocation(updatedOrder.getDestination());
+            orderEvent.setTotalPrice(updatedOrder.getPrice());
+            orderEvent.setStatus(updatedOrder.getStatus());
+            orderEvent.setCreatedAt(updatedOrder.getCreatedAt());
+            
+            switch (status) {
+                case "completed":
+                    kafkaProducerService.sendOrderCompletedEvent(orderEvent);
+                    log.info("Order completed event sent to Kafka for order ID: {}", orderId);
+                    break;
+                case "cancelled":
+                    kafkaProducerService.sendOrderCancelledEvent(orderEvent);
+                    log.info("Order cancelled event sent to Kafka for order ID: {}", orderId);
+                    break;
+            }
+        } catch (Exception e) {
+            log.error("Failed to send order status event to Kafka: {}", e.getMessage());
+        }
+        
+        return updatedOrder;
+    }
     
-    // private void createPayment(Order order) {
-    //     PaymentDto paymentDto = new PaymentDto();
-    //     paymentDto.setOrderId(order.getId());
-    //     paymentDto.setUserId(order.getUserId());
-    //     paymentDto.setAmount(order.getPrice());
-    //     paymentDto.setStatus("pending");
+    private void createPayment(Order order) {
+        try {
+            log.info("Membuat pembayaran untuk order ID: {} dengan method: {} dan amount: {}", 
+                    order.getId(), order.getPaymentMethod(), order.getPrice());
+            
+            PaymentDto paymentDto = new PaymentDto();
+            paymentDto.setOrderId(order.getId());
+            paymentDto.setAmount(order.getPrice());
+            paymentDto.setMethod(order.getPaymentMethod() != null ? order.getPaymentMethod() : "cash");
+            paymentDto.setStatus("pending");
+            
+            log.info("PaymentDto yang akan dikirim: orderId={}, amount={}, method={}, status={}", 
+                    paymentDto.getOrderId(), paymentDto.getAmount(), paymentDto.getMethod(), paymentDto.getStatus());
+            
+            PaymentDto createdPayment = paymentClient.createPayment(paymentDto);
+            
+            log.info("Pembayaran berhasil dibuat dengan ID: {} untuk order ID: {}", 
+                    createdPayment.getId(), order.getId());
+                    
+        } catch (Exception e) {
+            log.error("Gagal membuat pembayaran untuk order ID {}: {}", order.getId(), e.getMessage());
+            log.error("Stack trace:", e);
+            // Jangan throw exception karena order sudah berhasil dibuat
+        }
+    }
+
+    private void validateStatusTransition(String currentStatus, String newStatus) {
+        // Definisi status yang valid untuk setiap status saat ini
+        Map<String, Set<String>> validTransitions = Map.of(
+            "waiting", Set.of("in_progress", "cancelled"),
+            "in_progress", Set.of("in_progress", "cancelled"),
+            "in_progress", Set.of("completed", "cancelled"),
+            "completed", Set.of(),
+            "cancelled", Set.of()
+        );
+
+        Set<String> validNextStatus = validTransitions.get(currentStatus);
+        if (validNextStatus == null || !validNextStatus.contains(newStatus)) {
+            throw new RuntimeException(
+                String.format("Tidak dapat mengubah status dari '%s' ke '%s'", currentStatus, newStatus)
+            );
+        }
+    }
+    
+    private BigDecimal calculateDistance(BigDecimal originLat, BigDecimal originLng, 
+                                       BigDecimal destLat, BigDecimal destLng) {
+        if (originLat == null || originLng == null || destLat == null || destLng == null) {
+            return BigDecimal.ZERO;
+        }
+
+        // Haversine formula
+        double lat1 = Math.toRadians(originLat.doubleValue());
+        double lat2 = Math.toRadians(destLat.doubleValue());
+        double deltaLat = Math.toRadians(destLat.subtract(originLat).doubleValue());
+        double deltaLng = Math.toRadians(destLng.subtract(originLng).doubleValue());
+
+        double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+                   Math.cos(lat1) * Math.cos(lat2) *
+                   Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        // Earth radius in kilometers
+        double earthRadius = 6371;
+        double distance = earthRadius * c;
+
+        // Round to 2 decimal places
+        return new BigDecimal(distance).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calculatePrice(BigDecimal distance) {
+        // Base price
+        BigDecimal basePrice = new BigDecimal("10000");
         
-    //     paymentClient.createPayment(paymentDto);
-    // }
-
-    // private void validateStatusTransition(String currentStatus, String newStatus) {
-    //     // Definisi status yang valid untuk setiap status saat ini
-    //     Map<String, Set<String>> validTransitions = Map.of(
-    //         "waiting", Set.of("assigned", "cancelled"),
-    //         "assigned", Set.of("in_progress", "cancelled"),
-    //         "in_progress", Set.of("completed", "cancelled"),
-    //         "completed", Set.of(),
-    //         "cancelled", Set.of()
-    //     );
-
-    //     Set<String> validNextStatus = validTransitions.get(currentStatus);
-    //     if (validNextStatus == null || !validNextStatus.contains(newStatus)) {
-    //         throw new RuntimeException(
-    //             String.format("Tidak dapat mengubah status dari '%s' ke '%s'", currentStatus, newStatus)
-    //         );
-    //     }
-    // }
+        // Price per kilometer
+        BigDecimal pricePerKm = new BigDecimal("5000");
+        
+        // Calculate total price
+        BigDecimal distancePrice = distance.multiply(pricePerKm);
+        BigDecimal totalPrice = basePrice.add(distancePrice);
+        
+        // Round to nearest thousand
+        return totalPrice.setScale(-3, RoundingMode.CEILING);
+    }
     
     // public List<Order> getOrdersByUserId(Long userId) {
     //     log.info("Mengambil semua order untuk user ID: {}", userId);
@@ -282,7 +415,7 @@ public class OrderService {
     //     if (orderOpt.isPresent()) {
     //         Order order = orderOpt.get();
             
-    //         // If order has driver assigned, make driver available again
+    //         // If order has driver in_progress, make driver available again
     //         if (order.getDriverId() != null && !"completed".equals(order.getStatus())) {
     //             try {
     //                 driverClient.updateDriverStatus(order.getDriverId(), "available");
@@ -298,46 +431,6 @@ public class OrderService {
     //         log.error("Order dengan ID {} tidak ditemukan", id);
     //         throw new RuntimeException("Order tidak ditemukan: " + id);
     //     }
-    // }
-    
-    // private BigDecimal calculateDistance(BigDecimal originLat, BigDecimal originLng, 
-    //                                    BigDecimal destLat, BigDecimal destLng) {
-    //     if (originLat == null || originLng == null || destLat == null || destLng == null) {
-    //         return BigDecimal.ZERO;
-    //     }
-
-    //     // Haversine formula
-    //     double lat1 = Math.toRadians(originLat.doubleValue());
-    //     double lat2 = Math.toRadians(destLat.doubleValue());
-    //     double deltaLat = Math.toRadians(destLat.subtract(originLat).doubleValue());
-    //     double deltaLng = Math.toRadians(destLng.subtract(originLng).doubleValue());
-
-    //     double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-    //                Math.cos(lat1) * Math.cos(lat2) *
-    //                Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
-    //     double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    //     // Earth radius in kilometers
-    //     double earthRadius = 6371;
-    //     double distance = earthRadius * c;
-
-    //     // Round to 2 decimal places
-    //     return new BigDecimal(distance).setScale(2, RoundingMode.HALF_UP);
-    // }
-
-    // private BigDecimal calculatePrice(BigDecimal distance) {
-    //     // Base price
-    //     BigDecimal basePrice = new BigDecimal("10000");
-        
-    //     // Price per kilometer
-    //     BigDecimal pricePerKm = new BigDecimal("5000");
-        
-    //     // Calculate total price
-    //     BigDecimal distancePrice = distance.multiply(pricePerKm);
-    //     BigDecimal totalPrice = basePrice.add(distancePrice);
-        
-    //     // Round to nearest thousand
-    //     return totalPrice.setScale(-3, RoundingMode.CEILING);
     // }
 
     // public boolean isOrderPaid(Long orderId) {

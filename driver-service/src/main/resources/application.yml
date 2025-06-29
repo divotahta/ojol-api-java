@@ -1,11 +1,11 @@
 server:
-  port: 8082
+  port: 8083
 
 spring:
   application:
     name: driver-service
   datasource:
-    url: jdbc:mysql://localhost:3306/driver_db?useSSL=false&serverTimezone=UTC
+    url: jdbc:mysql://localhost:3306/driver_db?createDatabaseIfNotExist=true
     username: root
     password: 
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -16,8 +16,19 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: driver-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "*"
+        spring.json.value.default.type: com.example.dto.OrderEventDto
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/ 
+      defaultZone: http://localhost:8761/eureka/

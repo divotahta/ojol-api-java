@@ -47,6 +47,7 @@ public class OrderController {
 
     @PostMapping
     public ResponseEntity<?> createOrder(@Valid @RequestBody Order order) {
+        try {
         // 🔍 Validasi: cek apakah user masih punya order yang belum selesai
         List<Order> userOrders = orderRepository.findByUserId(order.getUserId());
         boolean hasUnfinishedOrder = userOrders.stream()
@@ -71,28 +72,22 @@ public class OrderController {
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
 
-        // ✅ Simpan order
-        Order savedOrder = orderRepository.save(order);
-
-        try {
-            // 🧾 Buat payment otomatis
-            PaymentDto payment = new PaymentDto();
-            payment.setOrderId(savedOrder.getId());
-            payment.setUserId(savedOrder.getUserId());
-            payment.setAmount(savedOrder.getPrice());
-            payment.setMethod(savedOrder.getPaymentMethod()); // pastikan field ini ada di entity Order
-            payment.setStatus("pending");
-
-            paymentClient.createPayment(payment);
-        } catch (Exception e) {
-            log.error("Gagal membuat payment untuk order ID: {}", savedOrder.getId(), e);
-            // tidak langsung return error, biarkan order tetap tersimpan
-        }
+            // ✅ Simpan order menggunakan OrderService yang sudah terintegrasi Kafka
+            Order savedOrder = orderService.createOrder(order);
 
         return ResponseEntity.ok(Map.of(
                 "message", "Order berhasil dibuat",
                 "success", true,
                 "data", savedOrder));
+                    
+        } catch (Exception e) {
+            log.error("Error creating order: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "message", "Gagal membuat order: " + e.getMessage(),
+                            "success", false,
+                            "error", "ORDER_CREATION_FAILED"));
+        }
     }
 
     @GetMapping
@@ -179,6 +174,7 @@ public class OrderController {
 
     @PutMapping("/{id}/accept")
     public ResponseEntity<?> acceptOrder(@PathVariable Long id, @RequestParam Long driverId) {
+        try {
         // 1. Cek apakah driver punya order in_progress
         List<Order> driverOrders = orderRepository.findByDriverId(driverId);
         boolean hasInProgress = driverOrders.stream().anyMatch(o -> "in_progress".equalsIgnoreCase(o.getStatus()));
@@ -186,6 +182,7 @@ public class OrderController {
             return ResponseEntity.badRequest()
                     .body(Map.of("message", "Driver masih memiliki order yang sedang berjalan!"));
         }
+            
         // 2. Cek status driver
         DriverDto driver = null;
         try {
@@ -213,33 +210,27 @@ public class OrderController {
             return ResponseEntity.badRequest().body(Map.of("message", "Driver sedang tidak available. Status saat ini: " + driverStatus));
         }
         
-        // 3. Proses assign order
-        Optional<Order> order = orderRepository.findById(id);
-        if (order.isPresent()) {
-            if (!"waiting".equalsIgnoreCase(order.get().getStatus())) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Order sudah diambil oleh driver lain"));
-            }
-            Order existingOrder = order.get();
-            existingOrder.setStatus("in_progress");
-            existingOrder.setDriverId(driverId);
-            Order updatedOrder = orderRepository.save(existingOrder);
-            return ResponseEntity.ok(updatedOrder);
+            // 3. Proses assign order menggunakan OrderService yang terintegrasi Kafka
+            Order updatedOrder = orderService.assignDriverToOrder(id, driverId);
+            return ResponseEntity.ok(Map.of("message", "Order berhasil diterima driver", "success", true, "data", updatedOrder));
+            
+        } catch (Exception e) {
+            log.error("Error accepting order {} by driver {}: {}", id, driverId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Gagal menerima order", "error", e.getMessage()));
         }
-        return ResponseEntity.notFound().build();
     }
 
     @PutMapping("/{id}/complete")
     public ResponseEntity<?> completeOrder(@PathVariable Long id) {
-        Optional<Order> orderOpt = orderRepository.findById(id);
-        if (orderOpt.isEmpty())
-            return ResponseEntity.notFound().build();
-
-        Order order = orderOpt.get();
-        order.setStatus("completed");
-        order.setUpdatedAt(LocalDateTime.now());
-        orderRepository.save(order);
-
-        return ResponseEntity.ok(Map.of("message", "Order completed", "success", true));
+        try {
+            Order updatedOrder = orderService.updateOrderStatus(id, "completed");
+            return ResponseEntity.ok(Map.of("message", "Order completed", "success", true, "data", updatedOrder));
+        } catch (Exception e) {
+            log.error("Error completing order {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Gagal menyelesaikan order", "error", e.getMessage()));
+        }
     }
 
     @GetMapping("/driver/{driverId}/in-progress")

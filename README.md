@@ -18,6 +18,11 @@ Sistem OjoL menggunakan arsitektur microservices yang terdiri dari:
 - **Order Service** - Manajemen pesanan
 - **Payment Service** - Manajemen pembayaran
 
+### Event-Driven Architecture dengan Kafka
+Sistem menggunakan Apache Kafka untuk komunikasi asynchronous antar microservices:
+- **Order Events** - Event terkait pesanan (created, accepted, completed, cancelled)
+- **Payment Events** - Event terkait pembayaran (created, completed, failed)
+
 ### Frontend
 - **Single Page Application** dengan HTML, CSS, JavaScript
 - **Responsive Design** menggunakan Tailwind CSS
@@ -35,6 +40,7 @@ Sistem OjoL menggunakan arsitektur microservices yang terdiri dari:
 - **Eureka** - Service discovery
 - **OpenFeign** - Service communication
 - **Spring Cloud Gateway** - API Gateway
+- **Apache Kafka** - Message broker untuk event-driven architecture
 
 ### Frontend
 - **HTML5** - Markup
@@ -56,29 +62,8 @@ ojol/
 ├── driver-service/         # Driver Management Service
 ├── order-service/          # Order Management Service
 ├── payment-service/        # Payment Management Service
-└── frontend/              # Frontend Application
-    ├── js/
-    │   ├── utils/
-    │   │   ├── api.js      # API utilities
-    │   │   ├── auth.js     # Authentication utilities
-    │   │   └── ui.js       # UI utilities
-    │   ├── config.js       # Configuration
-    │   ├── main.js         # Main application logic
-    │   ├── login.js        # Login functionality
-    │   ├── register.js     # Registration functionality
-    │   ├── homepage.js     # Homepage functionality
-    │   ├── admin-dashboard.js    # Admin dashboard
-    │   ├── customer-dashboard.js # Customer dashboard
-    │   └── driver-dashboard.js   # Driver dashboard
-    ├── css/
-    │   └── styles.css      # Custom styles
-    ├── index.html          # Entry point
-    ├── homepage.html       # Homepage
-    ├── login.html          # Login page
-    ├── register.html       # Registration page
-    ├── admin-dashboard.html     # Admin dashboard
-    ├── customer-dashboard.html  # Customer dashboard
-    └── driver-dashboard.html    # Driver dashboard
+├── frontend/              # Frontend Application
+kafka
 ```
 
 ## 🔧 Konfigurasi Service
@@ -93,6 +78,8 @@ ojol/
 - **Order Service**: 8085
 - **Payment Service**: 8084
 - **Frontend**: 3000
+- **Kafka**: 9092
+- **Kafka UI**: 8080
 
 ### Database Configuration
 Setiap service menggunakan database terpisah:
@@ -102,6 +89,35 @@ Setiap service menggunakan database terpisah:
 - `driver_db` - Driver Service
 - `order_db` - Order Service
 - `payment_db` - Payment Service
+
+## 🚀 Cara Menjalankan
+
+### 1. Menjalankan Kafka
+```bash
+docker-compose up -d
+```
+
+### 2. Menjalankan Microservices
+```bash
+# Terminal 1 - Eureka Server
+cd eureka-server && mvn spring-boot:run
+
+# Terminal 2 - API Gateway
+cd api-gateway && mvn spring-boot:run
+
+# Terminal 3 - Order Service
+cd order-service && mvn spring-boot:run
+
+# Terminal 4 - Payment Service
+cd payment-service && mvn spring-boot:run
+
+# Terminal 5 - Driver Service
+cd driver-service && mvn spring-boot:run
+```
+
+### 3. Monitoring Kafka
+- Kafka UI: http://localhost:8080
+- Monitor topics, consumers, dan messages
 
 ## 🎯 Fitur Utama
 
@@ -136,12 +152,33 @@ Setiap service menggunakan database terpisah:
 - **Status pesanan**: pending, accepted, in_progress, completed, cancelled
 - **Real-time tracking**
 - **Payment integration**
+- **Event-driven updates** via Kafka
 
 ### 6. Payment System
 - **Payment status tracking**
 - **Payment history**
 - **Integration** dengan order system
+- **Event-driven processing** via Kafka
 
+### 7. Event-Driven Architecture
+- **Asynchronous communication** antar services
+- **Real-time notifications** untuk driver dan customer
+- **Reliable message delivery** dengan Kafka
+- **Scalable event processing**
+
+## 📊 Event Flow
+
+### Order Created Flow:
+1. Customer membuat order melalui Order Service
+2. Order Service mengirim event `ORDER_CREATED` ke Kafka
+3. Driver Service menerima event dan notifikasi driver yang tersedia
+4. Payment Service menerima event dan membuat payment record
+
+### Order Accepted Flow:
+1. Driver menerima order
+2. Order Service mengirim event `ORDER_ACCEPTED` ke Kafka
+3. Driver Service update status driver
+4. Payment Service update payment status
 
 ## 📝 Contributing
 
@@ -160,6 +197,7 @@ MIT License - lihat file LICENSE untuk detail
 - **Backend Developer**: Spring Boot Microservices
 - **Frontend Developer**: JavaScript, HTML, CSS
 - **Database**: MySQL, JPA/Hibernate
+- **Message Broker**: Apache Kafka
 
 ## 📞 Support
 
@@ -167,7 +205,8 @@ Untuk pertanyaan dan support:
 - **Email**: dievoblokagung@gmail.com
 - **Documentation**: [Wiki](https://github.com/ojol/wiki)
 - **Issues**: [GitHub Issues](https://github.com/ojol/issues)
+- **Kafka Documentation**: [KAFKA_INTEGRATION.md](KAFKA_INTEGRATION.md)
 
 ---
 
-**OjoL** - Transportasi Online Terpercaya 🚗💨 
+**OjoL** - Transportasi Online Terpercaya dengan Event-Driven Architecture 🚗💨 

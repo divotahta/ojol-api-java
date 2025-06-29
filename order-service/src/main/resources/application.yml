@@ -1,11 +1,11 @@
 server:
-  port: 8083
+  port: 8085
 
 spring:
   application:
     name: order-service
   datasource:
-    url: jdbc:mysql://localhost:3306/order_db?useSSL=false&serverTimezone=UTC
+    url: jdbc:mysql://localhost:3306/order_db?createDatabaseIfNotExist=true
     username: root
     password: 
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -16,8 +16,54 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      retries: 3
+      acks: all
+      batch-size: 16384
+      buffer-memory: 33554432
+      properties:
+        spring.json.add.type.headers: false
+        spring.json.type.mapping: order-event:com.ojol.order.dto.OrderEvent
+    consumer:
+      group-id: order-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        enable.auto.commit: true
+        auto.commit.interval.ms: 1000
 
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/ 
+
+# Feign Client Configuration
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: full
+  logging:
+    level:
+      com.ojol.order.client.PaymentClient: DEBUG
+
+logging:
+  level:
+    org.apache.kafka: DEBUG
+    org.springframework.kafka: DEBUG
+    com.ojol.order.service.KafkaProducerService: DEBUG
+    com.ojol.order.service.OrderService: DEBUG
+    com.ojol.order.config.KafkaConfig: DEBUG
+    com.ojol.order.client.PaymentClient: DEBUG
+    feign: DEBUG
+    root: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n" 
